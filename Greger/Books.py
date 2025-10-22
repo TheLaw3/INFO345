@@ -20,7 +20,6 @@ print("RATINGS cols:", list(ratings.columns)[:30])
 def pick(colnames, candidates):
     for c in candidates:
         if c in colnames: return c
-        # try case-insensitive match
         for cn in colnames:
             if cn.lower()==c.lower(): return cn
     return None
