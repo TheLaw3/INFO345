@@ -54,7 +54,7 @@ before = len(df)
 df = df.dropna(subset=["user_id","item_id","rating"])
 df["user_id"] = df["user_id"].astype(str)
 df["item_id"] = df["item_id"].astype(str)
-df = df.drop_duplicates(subset=["user_id","item_id"])  # keep one opinion per pair
+df = df.drop_duplicates(subset=["user_id","item_id"]) 
 print(f"Dropped {before - len(df)} rows due to NA/dupes.")
 
 #  join titles 
