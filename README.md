@@ -45,6 +45,9 @@ Define the evaluation strategy before modeling:
 
 
 
+Lecture 3: TF: noen reviews veier mer en andre
+
+
 
 Report Integration
 
