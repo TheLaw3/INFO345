@@ -1,0 +1,44 @@
+{
+  "ratings_path": "/Users/gregersyvertsen/Documents/Info345/Dataset/Project/archive/Books_rating_cleaned.csv",
+  "items_path": "/Users/gregersyvertsen/Documents/Info345/Dataset/Project/archive/books_data.csv",
+  "ratings_shape": [
+    1031870,
+    6
+  ],
+  "items_shape": [
+    212404,
+    10
+  ],
+  "ratings_columns": [
+    "Id",
+    "Title",
+    "User_id",
+    "review/score",
+    "review/summary",
+    "review/text"
+  ],
+  "items_columns": [
+    "Title",
+    "description",
+    "authors",
+    "image",
+    "previewLink",
+    "publisher",
+    "publishedDate",
+    "infoLink",
+    "categories",
+    "ratingsCount"
+  ],
+  "column_hints": {
+    "expected_ratings": [
+      "user_id/User_id/reviewerID",
+      "item_id/Id/asin",
+      "rating or review/score"
+    ],
+    "expected_items": [
+      "item_id or Title",
+      "Title",
+      "categories"
+    ]
+  }
+}

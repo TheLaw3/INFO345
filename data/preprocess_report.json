@@ -1,0 +1,15 @@
+{
+  "rows_base": 1031870,
+  "users_base": 81266,
+  "items_base": 62846,
+  "rows_cf": 941600,
+  "users_cf_min_user": 75418,
+  "items_cf_min_item": 29036,
+  "min_user": 5,
+  "min_item": 5,
+  "paths": {
+    "trainable_ratings": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/trainable_ratings.csv",
+    "items": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/items.csv",
+    "ratings_cf_train": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/ratings_cf_train.csv"
+  }
+}
