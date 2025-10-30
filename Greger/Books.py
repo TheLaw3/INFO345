@@ -4,8 +4,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 # Paths
-meta_path = Path("/Users/gregersyvertsen/Documents/Info345/Dataset/Project/archive/books_data.csv")
-ratings_path = Path("/Users/gregersyvertsen/Documents/Info345/Dataset/Project/archive/Books_rating_cleaned.csv")
+meta_path = Path("/Users/sondrebjerck/Documents/INFO354Dataset/books_data.csv")
+ratings_path = Path("/Users/sondrebjerck/Documents/INFO354Dataset/ratings_clean.csv")
 
 if not meta_path.exists():
     raise FileNotFoundError(f"Missing file: {meta_path}")
