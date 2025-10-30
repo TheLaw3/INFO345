@@ -1,4 +1,4 @@
-# Greger/cbf_tfidf.py — CBF TF-IDF (fixed types + optional candidate cap + progress logs)
+# Greger/cbf_tfidf_fast.py — CBF TF-IDF with candidate pool + precomputed user likes
 import argparse, json, math
 from pathlib import Path
 import numpy as np
@@ -7,7 +7,6 @@ from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import normalize
 
-# ---------- metrics ----------
 def ndcg_at_k(rec_items, rel_set, k):
     if k == 0: return 0.0
     dcg = 0.0
@@ -50,7 +49,6 @@ def eval_topk(recs_df, eval_df, k):
         f"hit_rate@{k}":  float(np.mean(hits))  if hits  else 0.0,
     }
 
-# ---------- helpers ----------
 def load_splits(train_path, val_path, test_path):
     train = pd.read_csv(train_path)
     val   = pd.read_csv(val_path)
@@ -68,7 +66,6 @@ def pick(colnames, candidates):
         if c.lower() in s: return s[c.lower()]
     return None
 
-# ---------- main ----------
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", required=True)
@@ -79,19 +76,18 @@ def main():
     ap.add_argument("--k_top", type=int, default=10)
     ap.add_argument("--threshold", type=float, default=4.0)
     ap.add_argument("--min_df", type=int, default=2)
-    ap.add_argument("--max_features", type=int, default=100000)
-    ap.add_argument("--ngram_max", type=int, default=2)
+    ap.add_argument("--max_features", type=int, default=30000)
+    ap.add_argument("--ngram_max", type=int, default=1)
     ap.add_argument("--stop_words", default="english")   # "none" to disable
-    ap.add_argument("--cand_pool", type=int, default=0, help="0 = full catalog; >0 = cap by popularity")
-    ap.add_argument("--limit_users_val",  type=int, default=None)
-    ap.add_argument("--limit_users_test", type=int, default=None)
-    ap.add_argument("--outdir", default="out/cbf")
+    ap.add_argument("--cand_pool", type=int, default=20000)  # cap candidate items
+    ap.add_argument("--limit_users_val",  type=int, default=1000)
+    ap.add_argument("--limit_users_test", type=int, default=1000)
+    ap.add_argument("--outdir", default="out/cbf_fast")
     args = ap.parse_args()
 
     outdir = Path(args.outdir); outdir.mkdir(parents=True, exist_ok=True)
     train, val, test = load_splits(args.train, args.val, args.test)
 
-    # items + text
     items = pd.read_csv(args.items)
     items["item_id"] = items["item_id"].astype(str) if "item_id" in items.columns else items["Id"].astype(str)
     tcol = args.text_col
@@ -105,82 +101,69 @@ def main():
     items = items[items[tcol].str.len() > 0].copy()
     item_ids = items["item_id"].tolist()
     idx_by_item = {iid:i for i, iid in enumerate(item_ids)}
-    catalog_with_text = set(idx_by_item.keys())
 
-    # TF-IDF
-    stop = None if args.stop_words.lower() == "none" else args.stop_words
     vec = TfidfVectorizer(min_df=args.min_df, max_features=args.max_features,
-                          ngram_range=(1, args.ngram_max), stop_words=stop)
+                          ngram_range=(1, args.ngram_max), stop_words=(None if args.stop_words=="none" else args.stop_words))
     X = vec.fit_transform(items[tcol].values)  # CSR [n_items, V]
     print(f"TFIDF: items={X.shape[0]}, terms={X.shape[1]}", flush=True)
 
-    # seen map
     seen = {u: set(g["item_id"].astype(str)) for u, g in train.groupby("user_id")}
 
-    # optional candidate cap by popularity
-    cand_set = catalog_with_text
-    if args.cand_pool and args.cand_pool > 0:
-        pop = train.groupby("item_id").size().sort_values(ascending=False)
-        head = set(pop.index.astype(str)[:args.cand_pool])
-        cand_set = head.intersection(catalog_with_text)
-        if not cand_set:
-            cand_set = catalog_with_text
-    print(f"candidate_items={len(cand_set)}", flush=True)
+    pop = train.groupby("item_id").size().sort_values(ascending=False)
+    cand_head = set(pop.index.astype(str)[:args.cand_pool]).intersection(idx_by_item.keys())
+    if not cand_head:
+        cand_head = set(idx_by_item.keys())
+    print(f"cand_pool={len(cand_head)}", flush=True)
 
-    def recommend_for_users(eval_df, split_name):
+    liked = train[(train["rating"] >= args.threshold) & (train["item_id"].isin(idx_by_item.keys()))].copy()
+    liked["iid_idx"] = liked["item_id"].map(idx_by_item).astype("Int64")
+    liked = liked.dropna(subset=["iid_idx"])
+    liked["w"] = (liked["rating"] - args.threshold).clip(lower=0).astype(np.float32)
+    grp = liked.groupby("user_id")
+    liked_idx_by_u = {u: g["iid_idx"].astype(int).to_numpy() for u, g in grp}
+    weights_by_u   = {u: g["w"].to_numpy()            for u, g in grp}
+
+    def recommend_for_split(eval_df, split_name):
         users = eval_df["user_id"].astype(str).unique().tolist()
+        users = [u for u in users if u in seen and u in liked_idx_by_u]
         if split_name == "val"  and args.limit_users_val:  users = users[:args.limit_users_val]
         if split_name == "test" and args.limit_users_test: users = users[:args.limit_users_test]
-        print(f"{split_name}: scoring {len(users)} users", flush=True)
+        print(f"{split_name}: users={len(users)}", flush=True)
 
         rows = []
         for i, u in enumerate(users, 1):
-            u = str(u)
-            if u not in seen: 
+            li = liked_idx_by_u[u]
+            w  = weights_by_u[u]
+            if li.size == 0: 
                 continue
 
-            utrain = train[(train["user_id"] == u) & (train["rating"] >= args.threshold)]
-            utrain = utrain[utrain["item_id"].isin(catalog_with_text)]
-            if utrain.empty:
-                continue
-
-            liked_idx = [idx_by_item[iid] for iid in utrain["item_id"] if iid in idx_by_item]
-            if not liked_idx:
-                continue
-
-            w = (utrain["rating"].to_numpy(dtype=float) - args.threshold)
-            w = np.clip(w, 0.0, None)                          # L
-            prof_vec = X[liked_idx].T.dot(w)                   # V ndarray
-            prof = csr_matrix(prof_vec.reshape(1, -1))         # 1 x V CSR
+            prof_vec = X[li].T.dot(w)                         # V-length ndarray
+            prof = csr_matrix(prof_vec.reshape(1, -1))
             prof = normalize(prof, norm="l2", copy=False)
 
-            cand_iids = list(cand_set - seen[u])
-            if not cand_iids:
+            cand_iids = list(cand_head - seen[u])
+            if not cand_iids: 
                 continue
             cand_idx = [idx_by_item[iid] for iid in cand_iids]
-            Xcand = X[cand_idx]                                # Nc x V CSR
-            scores = Xcand.dot(prof.T).toarray().ravel()       # Nc floats
+            Xcand = X[cand_idx]                               # Nc x V CSR
+            scores = Xcand.dot(prof.T).toarray().ravel()      # Nc floats
 
             topk = min(args.k_top, scores.size)
-            if topk <= 0:
+            if topk <= 0: 
                 continue
             top_idx = np.argpartition(-scores, topk-1)[:topk]
             top_sorted = top_idx[np.argsort(-scores[top_idx])]
             for r, j in enumerate(top_sorted, 1):
                 rows.append({"user_id": u, "item_id": cand_iids[j],
                              "rank": r, "score": float(scores[j]), "source":"cbf_tfidf"})
-
-            if i % 2000 == 0:
+            if i % 100 == 0:
                 print(f"{split_name}: users_processed={i}, rows={len(rows)}", flush=True)
-
         return pd.DataFrame(rows)
 
-    recs_val  = recommend_for_users(val,  "val")
-    recs_test = recommend_for_users(test, "test")
-    out_val  = outdir/"val_recs_cbf.csv"
-    out_test = outdir/"test_recs_cbf.csv"
-    recs_val.to_csv(out_val, index=False)
-    recs_test.to_csv(out_test, index=False)
+    recs_val  = recommend_for_split(val,  "val")
+    recs_test = recommend_for_split(test, "test")
+    recs_val.to_csv(outdir/"val_recs_cbf.csv", index=False)
+    recs_test.to_csv(outdir/"test_recs_cbf.csv", index=False)
 
     vr = val[val["rating"]  >= args.threshold][["user_id","item_id","rating"]]
     tr = test[test["rating"] >= args.threshold][["user_id","item_id","rating"]]
@@ -188,7 +171,7 @@ def main():
     res_test = eval_topk(recs_test, tr, args.k_top)
 
     metrics = {
-        "model": "CBF TF-IDF",
+        "model": "CBF TF-IDF (fast)",
         "params": {"k_top": args.k_top, "threshold": args.threshold,
                    "min_df": args.min_df, "max_features": args.max_features,
                    "ngram_max": args.ngram_max, "stop_words": args.stop_words,
@@ -196,8 +179,10 @@ def main():
                    "limit_users_val": args.limit_users_val,
                    "limit_users_test": args.limit_users_test},
         "topk": {"val": res_val, "test": res_test},
-        "files": {"val_recs": str(out_val.resolve()),
-                  "test_recs": str(out_test.resolve())}
+        "files": {
+            "val_recs": str((outdir/"val_recs_cbf.csv").resolve()),
+            "test_recs": str((outdir/"test_recs_cbf.csv").resolve()),
+        }
     }
     (outdir/"cbf_metrics.json").write_text(json.dumps(metrics, indent=2))
     print(json.dumps(metrics, indent=2), flush=True)
