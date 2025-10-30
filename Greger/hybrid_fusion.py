@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# ---------- metrics ----------
+#  metrics 
 def ndcg_at_k(rec_items, rel_set, k):
     if k == 0: return 0.0
     dcg = 0.0
@@ -47,7 +47,7 @@ def eval_topk(recs_df, eval_df, k):
         f"hit_rate@{k}":  float(np.mean(hits))  if hits  else 0.0,
     }
 
-# ---------- helpers ----------
+#  helpers 
 def load_recs(path, src_name):
     df = pd.read_csv(path)
     # keep only needed cols
@@ -124,7 +124,7 @@ def fuse_one_split(cf_path, cbf_path, eval_gt, K, w_cf, w_cbf, w_pop, pop_z=None
     metrics = eval_topk(recs, eval_gt, K)
     return recs, metrics
 
-# ---------- main ----------
+#  main 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--cf_val",  required=True)
