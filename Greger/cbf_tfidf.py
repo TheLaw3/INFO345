@@ -55,10 +55,15 @@ def load_splits(train_path, val_path, test_path):
     train = pd.read_csv(train_path)
     val   = pd.read_csv(val_path)
     test  = pd.read_csv(test_path)
+    cleaned = []
     for df in (train, val, test):
         df["user_id"] = df["user_id"].astype(str).str.strip()
         df["item_id"] = df["item_id"].astype(str).str.strip()
         df["rating"]  = pd.to_numeric(df["rating"], errors="coerce").clip(1,5)
+        df = df.dropna(subset=["rating"])
+        df = df.drop_duplicates(subset=["user_id","item_id"], keep="last")
+        cleaned.append(df)
+    train, val, test = cleaned
     return train, val, test
 
 def pick(colnames, candidates):
@@ -177,7 +182,7 @@ def main():
             prof = csr_matrix(prof_vec.reshape(1, -1))         # 1 x V CSR
             prof = normalize(prof, norm="l2", copy=False)
 
-            cand_iids = list(cand_set - seen[u])
+            cand_iids = sorted(cand_set - seen[u])
             if not cand_iids:
                 continue
             cand_idx = [idx_by_item[iid] for iid in cand_iids]

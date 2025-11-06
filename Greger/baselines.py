@@ -51,11 +51,11 @@ def eval_topk(recs_df, eval_df, k):
 
 # ---- helpers ----
 def build_seen(train_df):
-    return {str(u): set(g["item_id"].astype(str)) for u, g in train_df.groupby("user_id")}
+    return {str(u): set(g["item_id"].astype(str).str.strip()) for u, g in train_df.groupby("user_id")}
 
 def topk_popularity_stream(train_df, users, seen, K, out_csv, scan_limit=None, progress_every=2000):
     pop = train_df.groupby("item_id").size().sort_values(ascending=False)
-    pop_items = pop.index.astype(str).tolist()
+    pop_items = pop.index.astype(str).str.strip().tolist()
     if scan_limit: pop_items = pop_items[:scan_limit]
     rows = []
     for idx, u in enumerate(users, 1):
@@ -128,18 +128,30 @@ if __name__ == "__main__":
 
     log("load splits")
     train = pd.read_csv(args.train); val = pd.read_csv(args.val); test = pd.read_csv(args.test)
+    cleaned = []
     for df in (train, val, test):
-        df["user_id"] = df["user_id"].astype(str)
-        df["item_id"] = df["item_id"].astype(str)
+        df = df.dropna(subset=["user_id", "item_id"]).copy()
+        df["user_id"] = df["user_id"].astype(str).str.strip()
+        df["item_id"] = df["item_id"].astype(str).str.strip()
         df["rating"]  = pd.to_numeric(df["rating"], errors="coerce").clip(1,5)
+        df = df.dropna(subset=["rating"])
+        df = df.drop_duplicates(subset=["user_id","item_id"], keep="last")
+        cleaned.append(df)
+    train, val, test = cleaned
 
     # catalog
     if args.items and Path(args.items).exists():
         items_df = pd.read_csv(args.items)
-        all_items = items_df["item_id"].astype(str).unique().tolist() if "item_id" in items_df.columns \
-                    else pd.unique(pd.concat([train["item_id"], val["item_id"], test["item_id"]]).astype(str)).tolist()
+        if "item_id" in items_df.columns:
+            all_items = items_df["item_id"].astype(str).str.strip().unique().tolist()
+        else:
+            all_items = pd.unique(
+                pd.concat([train["item_id"], val["item_id"], test["item_id"]]).astype(str).str.strip()
+            ).tolist()
     else:
-        all_items = pd.unique(pd.concat([train["item_id"], val["item_id"], test["item_id"]]).astype(str)).tolist()
+        all_items = pd.unique(
+            pd.concat([train["item_id"], val["item_id"], test["item_id"]]).astype(str).str.strip()
+        ).tolist()
     all_items_set = set(all_items)
 
     seen = build_seen(train)
