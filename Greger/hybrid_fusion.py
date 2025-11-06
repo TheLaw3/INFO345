@@ -141,9 +141,20 @@ if __name__ == "__main__":
     ap.add_argument("--train", default="", help="train CSV for popularity tie-breaker")
     ap.add_argument("--k_top", type=int, default=10)
     ap.add_argument("--threshold", type=float, default=4.0)
-    ap.add_argument("--w_cf",  type=float, default=0.5)
-    ap.add_argument("--w_cbf", type=float, default=0.5)
+    ap.add_argument("--w_cf",  type=float, default=0.7)
+    ap.add_argument("--w_cbf", type=float, default=0.3)
     ap.add_argument("--w_pop", type=float, default=0.0)
+    ap.add_argument("--tune_weights", action="store_true",
+                    help="grid-search fusion weights on the validation split")
+    ap.add_argument("--grid_cf", default="0.6,0.7,0.8,0.9",
+                    help="comma separated candidate weights for CF when tuning")
+    ap.add_argument("--grid_cbf", default="0.1,0.2,0.3,0.4",
+                    help="comma separated candidate weights for CBF when tuning")
+    ap.add_argument("--grid_pop", default="0.0,0.05,0.1",
+                    help="comma separated candidate weights for popularity when tuning")
+    ap.add_argument("--tune_metric", default="ndcg",
+                    choices=["precision", "recall", "ndcg", "hit_rate"],
+                    help="validation metric to maximise during tuning")
     ap.add_argument("--limit_users_val",  type=int, default=None)
     ap.add_argument("--limit_users_test", type=int, default=None)
     ap.add_argument("--outdir", default="out/hybrid")
@@ -154,9 +165,51 @@ if __name__ == "__main__":
         raise ValueError("all weights are zero")
 
     pop_z = item_pop_from_train(args.train) if (args.train and Path(args.train).exists() and args.w_pop != 0.0) else None
+    if args.w_pop != 0.0 and pop_z is None:
+        print("[hybrid_fusion] popularity weight requested but no train data found; forcing w_pop=0", flush=True)
+        args.w_pop = 0.0
 
     val_gt  = build_eval(args.val,  args.threshold)
     test_gt = build_eval(args.test, args.threshold)
+
+    def parse_grid(values):
+        return [float(v) for v in str(values).split(",") if v != ""]
+
+    if args.tune_weights:
+        cf_grid  = parse_grid(args.grid_cf)
+        cbf_grid = parse_grid(args.grid_cbf)
+        pop_grid = parse_grid(args.grid_pop)
+        if pop_z is None:
+            pop_grid = [w for w in pop_grid if w == 0.0] or [0.0]
+        metric_key = f"{args.tune_metric}@{args.k_top}"
+        best_tuple = None
+        best_metric = -float("inf")
+        for w_cf in cf_grid:
+            for w_cbf in cbf_grid:
+                for w_pop in pop_grid:
+                    if w_cf == 0 and w_cbf == 0 and w_pop == 0:
+                        continue
+                    _, m = fuse_one_split(
+                        args.cf_val, args.cbf_val, val_gt, args.k_top,
+                        w_cf, w_cbf, w_pop, pop_z,
+                        args.limit_users_val, out_csv=None
+                    )
+                    if metric_key not in m:
+                        raise KeyError(f"metric '{metric_key}' not in validation metrics: {list(m.keys())}")
+                    score = m[metric_key]
+                    if score > best_metric:
+                        best_metric = score
+                        best_tuple = (w_cf, w_cbf, w_pop, m)
+        if best_tuple is None:
+            raise RuntimeError("no valid weight combination found during tuning")
+        args.w_cf, args.w_cbf, args.w_pop, best_metrics = best_tuple
+        print(json.dumps({
+            "tuning": {
+                "metric": metric_key,
+                "best_weights": {"w_cf": args.w_cf, "w_cbf": args.w_cbf, "w_pop": args.w_pop},
+                "best_val_metrics": best_metrics
+            }
+        }, indent=2))
 
     val_recs,  val_metrics  = fuse_one_split(
         args.cf_val, args.cbf_val, val_gt, args.k_top,
