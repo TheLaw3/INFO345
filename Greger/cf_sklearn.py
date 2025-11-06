@@ -61,6 +61,8 @@ class ItemKNN:
         self.R = None  # CSR users x items
         self.neigh_ind = None
         self.neigh_sim = None
+        self._inv_item_index = None
+        self._seen = None
 
     def fit(self, train_df):
         # map ids
@@ -68,6 +70,7 @@ class ItemKNN:
         items = train_df["item_id"].astype(str).unique()
         self.user_index = {u:i for i,u in enumerate(users)}
         self.item_index = {it:j for j,it in enumerate(items)}
+        self._inv_item_index = {j: it for it, j in self.item_index.items()}
 
         # build matrix
         ui = train_df["user_id"].map(self.user_index).values
@@ -85,17 +88,20 @@ class ItemKNN:
         self.neigh_ind = indices
         self.neigh_sim = 1.0 - distances
 
+        # cache items seen by each user (string ids)
+        self._seen = {str(u): set(g["item_id"].astype(str).str.strip())
+                      for u, g in train_df.groupby("user_id")}
+
     def recommend_for_users(self, eval_users, K=10, max_neigh=None):
         if max_neigh is None or max_neigh > self.n_neighbors:
             max_neigh = self.n_neighbors
         rows = []
-        # build seen dict
-        seen = {u: set() for u in eval_users if u in self.user_index}
-        for u, g in train.groupby("user_id"):
-            if u in seen: seen[u] = set(g["item_id"].astype(str).tolist())
+        if self._seen is None:
+            self._seen = {}
 
         for u in eval_users:
-            if u not in self.user_index: 
+            u = str(u)
+            if u not in self.user_index:
                 continue
             uidx = self.user_index[u]
             # user rated items and ratings
@@ -107,12 +113,15 @@ class ItemKNN:
                 continue
 
             scores = {}
+            seen_u = self._seen.get(u, set())
             for i_idx, r in zip(rated_items, rated_vals):
                 neighs = self.neigh_ind[i_idx, 1:max_neigh+1]   # skip self at [0]
                 sims   = self.neigh_sim[i_idx, 1:max_neigh+1]
                 for j_idx, s in zip(neighs, sims):
-                    iid = item_ids[j_idx]
-                    if iid in seen[u]: 
+                    iid = self._inv_item_index.get(j_idx)
+                    if iid is None:
+                        continue
+                    if iid in seen_u:
                         continue
                     scores[iid] = scores.get(iid, 0.0) + float(s) * float(r)
 
@@ -128,10 +137,30 @@ def load_splits(train_path, val_path, test_path):
     val   = pd.read_csv(val_path)
     test  = pd.read_csv(test_path)
     for df in (train, val, test):
-        df["user_id"] = df["user_id"].astype(str)
-        df["item_id"] = df["item_id"].astype(str)
+        df["user_id"] = df["user_id"].astype(str).str.strip()
+        df["item_id"] = df["item_id"].astype(str).str.strip()
         df["rating"]  = pd.to_numeric(df["rating"], errors="coerce").clip(1,5)
     return train, val, test
+
+def log_relevance_coverage(split_df, split_name, item_index, threshold):
+    rel = split_df[split_df["rating"] >= threshold][["user_id", "item_id"]].copy()
+    if rel.empty:
+        print(f"{split_name}: no interactions above threshold={threshold}", flush=True)
+        return
+
+    rel["item_id"] = rel["item_id"].astype(str).str.strip()
+    rel["covered"] = rel["item_id"].isin(item_index)
+
+    users_total = rel["user_id"].nunique()
+    users_with_covered = rel.groupby("user_id")["covered"].any().sum()
+    items_total = rel["item_id"].nunique()
+    items_covered = rel.loc[rel["covered"], "item_id"].nunique()
+
+    print(
+        f"{split_name}: relevant_items={items_total}, covered_items={items_covered}, "
+        f"users_with_covered={users_with_covered}/{users_total}",
+        flush=True,
+    )
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -147,12 +176,13 @@ if __name__ == "__main__":
     outdir = Path(args.outdir); outdir.mkdir(parents=True, exist_ok=True)
     train, val, test = load_splits(args.train, args.val, args.test)
 
-    # make item id list in model scope for fast lookup
-    item_ids = train["item_id"].astype(str).unique().tolist()
-
     # fit item-kNN
     model = ItemKNN(n_neighbors=args.neighbors, metric="cosine")
     model.fit(train)
+
+    item_ids = set(model.item_index.keys())
+    log_relevance_coverage(val, "val", item_ids, args.threshold)
+    log_relevance_coverage(test, "test", item_ids, args.threshold)
 
     # build relevance sets
     val_rel  = val[val["rating"]  >= args.threshold][["user_id","item_id","rating"]]
