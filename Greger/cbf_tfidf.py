@@ -7,7 +7,7 @@ from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import normalize
 
-# ---------- metrics ----------
+# metrics
 def ndcg_at_k(rec_items, rel_set, k):
     if k == 0: return 0.0
     dcg = 0.0
@@ -50,7 +50,7 @@ def eval_topk(recs_df, eval_df, k):
         f"hit_rate@{k}":  float(np.mean(hits))  if hits  else 0.0,
     }
 
-# ---------- helpers ----------
+#  helpers 
 def load_splits(train_path, val_path, test_path):
     train = pd.read_csv(train_path)
     val   = pd.read_csv(val_path)
@@ -73,7 +73,7 @@ def pick(colnames, candidates):
         if c.lower() in s: return s[c.lower()]
     return None
 
-# ---------- main ----------
+#  main 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", required=True)

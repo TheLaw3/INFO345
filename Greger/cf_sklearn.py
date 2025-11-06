@@ -6,7 +6,7 @@ import pandas as pd
 from scipy.sparse import csr_matrix
 from sklearn.neighbors import NearestNeighbors
 
-# ------- metrics -------
+#  metrics 
 def ndcg_at_k(rec_items, rel_set, k):
     if k == 0: return 0.0
     dcg = 0.0
@@ -50,7 +50,7 @@ def eval_topk(recs_df, eval_df, k):
         f"hit_rate@{k}": float(np.mean(hits)) if hits else 0.0,
     }
 
-# ------- CF model (item-kNN with cosine) -------
+#  CF model (item-kNN with cosine) 
 class ItemKNN:
     def __init__(self, n_neighbors=200, metric="cosine"):
         self.n_neighbors = n_neighbors

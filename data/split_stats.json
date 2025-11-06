@@ -5,14 +5,17 @@
   "n_rows_in": 1031870,
   "n_users_in": 81266,
   "n_items_in": 62846,
-  "n_rows_train": 950994,
+  "n_rows_train": 870876,
   "n_rows_val": 80118,
   "n_rows_test": 80876,
   "n_users_train": 81266,
   "n_users_val": 80118,
   "n_users_test": 80876,
-  "n_items_train": 61747,
-  "n_items_val": 22875,
-  "n_items_test": 23379,
-  "min_train_inter": 1
+  "n_items_train": 62751,
+  "n_items_val": 22360,
+  "n_items_test": 22595,
+  "min_train_inter": 1,
+  "min_item_support": 2,
+  "val_items_covered_in_train": 0.9989390648793031,
+  "test_items_covered_in_train": 0.9995054156981057
 }

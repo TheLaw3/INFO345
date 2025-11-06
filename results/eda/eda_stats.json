@@ -3,12 +3,12 @@
   "items_path": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/items.csv",
   "n_users": 81266,
   "n_items": 62846,
-  "n_interactions": 1209202,
-  "density": 0.00023676218098033744,
+  "n_interactions": 1031870,
+  "density": 0.00020204051241081374,
   "rating_summary": {
-    "count": 1209202.0,
-    "mean": 4.250999419451837,
-    "std": 1.1003928291159815,
+    "count": 1031870.0,
+    "mean": 4.242150658513185,
+    "std": 1.1015269747070346,
     "min": 1.0,
     "25%": 4.0,
     "50%": 5.0,
@@ -16,13 +16,14 @@
     "max": 5.0
   },
   "rating_shares": {
-    "1.0": 0.045394,
-    "2.0": 0.046486,
-    "3.0": 0.099608,
-    "4.0": 0.228749,
-    "5.0": 0.579763
+    "1.0": 0.0452,
+    "2.0": 0.047305,
+    "3.0": 0.101804,
+    "4.0": 0.231522,
+    "5.0": 0.574167
   },
-  "users_with_single_rating_pct": 0.004762139147983167,
-  "items_with_single_rating_pct": 0.16389269006778473,
-  "top20pct_popularity_share": 0.8337920380548494
+  "users_with_single_rating_pct": 0.004799054955331873,
+  "items_with_single_rating_pct": 0.16645450784457244,
+  "missing_titles_pct": 0.0,
+  "top20pct_popularity_share": 0.8117902448951902
 }

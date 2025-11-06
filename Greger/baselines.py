@@ -6,7 +6,7 @@ import pandas as pd
 
 def log(msg): print(msg, flush=True)
 
-# ---- metrics ----
+# metrics
 def ndcg_at_k(rec_items, rel_set, k):
     if k == 0: return 0.0
     dcg = 0.0
@@ -49,7 +49,7 @@ def eval_topk(recs_df, eval_df, k):
         f"hit_rate@{k}":  float(np.mean(hits))  if hits  else 0.0,
     }
 
-# ---- helpers ----
+#  helpers 
 def build_seen(train_df):
     return {str(u): set(g["item_id"].astype(str).str.strip()) for u, g in train_df.groupby("user_id")}
 
@@ -108,7 +108,7 @@ def rating_baselines(train_df, eval_df):
         metrics[split_name] = out
     return metrics
 
-# ---- main ----
+#  main 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", required=True)
