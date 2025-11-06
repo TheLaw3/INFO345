@@ -53,10 +53,16 @@ def load_splits(train_path, val_path, test_path):
     train = pd.read_csv(train_path)
     val   = pd.read_csv(val_path)
     test  = pd.read_csv(test_path)
+    cleaned = []
     for df in (train, val, test):
-        df["user_id"] = df["user_id"].astype(str)
-        df["item_id"] = df["item_id"].astype(str)
+        df = df.dropna(subset=["user_id", "item_id"]).copy()
+        df["user_id"] = df["user_id"].astype(str).str.strip()
+        df["item_id"] = df["item_id"].astype(str).str.strip()
         df["rating"]  = pd.to_numeric(df["rating"], errors="coerce").clip(1,5)
+        df = df.dropna(subset=["rating"])
+        df = df.drop_duplicates(subset=["user_id","item_id"], keep="last")
+        cleaned.append(df)
+    train, val, test = cleaned
     return train, val, test
 
 def pick(colnames, candidates):
@@ -89,16 +95,23 @@ def main():
     train, val, test = load_splits(args.train, args.val, args.test)
 
     items = pd.read_csv(args.items)
-    items["item_id"] = items["item_id"].astype(str) if "item_id" in items.columns else items["Id"].astype(str)
+    id_col = "item_id" if "item_id" in items.columns else "Id"
+    items["item_id"] = items[id_col].astype(str).str.strip()
     tcol = args.text_col
     if tcol not in items.columns:
         title = pick(items.columns, ["title","Title","name"])
         cats  = pick(items.columns, ["categories","category","genres","labels"])
-        items[tcol] = items.get(title, pd.Series([""]*len(items))).astype(str) + " " + \
-                      items.get(cats,  pd.Series([""]*len(items))).astype(str)
-    items[tcol] = items[tcol].fillna("").astype(str)
-    items = items.drop_duplicates("item_id")
-    items = items[items[tcol].str.len() > 0].copy()
+        title_series = items.get(title, pd.Series("", index=items.index)).astype(str)
+        cats_series  = items.get(cats,  pd.Series("", index=items.index)).astype(str)
+        items[tcol] = (title_series + " " + cats_series).str.strip()
+    items[tcol] = items[tcol].fillna("").astype(str).str.strip()
+    empty = items[tcol].str.len() == 0
+    if empty.any():
+        items.loc[empty, tcol] = items.loc[empty, "item_id"]
+    items = (items.assign(_text_len=items[tcol].str.len())
+                  .sort_values(["item_id", "_text_len"], ascending=[True, False])
+                  .drop_duplicates("item_id")
+                  .drop(columns="_text_len"))
     item_ids = items["item_id"].tolist()
     idx_by_item = {iid:i for i, iid in enumerate(item_ids)}
 
@@ -107,7 +120,7 @@ def main():
     X = vec.fit_transform(items[tcol].values)  # CSR [n_items, V]
     print(f"TFIDF: items={X.shape[0]}, terms={X.shape[1]}", flush=True)
 
-    seen = {u: set(g["item_id"].astype(str)) for u, g in train.groupby("user_id")}
+    seen = {u: set(g["item_id"].astype(str).str.strip()) for u, g in train.groupby("user_id")}
 
     pop = train.groupby("item_id").size().sort_values(ascending=False)
     cand_head = set(pop.index.astype(str)[:args.cand_pool]).intersection(idx_by_item.keys())
@@ -141,7 +154,7 @@ def main():
             prof = csr_matrix(prof_vec.reshape(1, -1))
             prof = normalize(prof, norm="l2", copy=False)
 
-            cand_iids = list(cand_head - seen[u])
+            cand_iids = sorted(cand_head - seen[u])
             if not cand_iids: 
                 continue
             cand_idx = [idx_by_item[iid] for iid in cand_iids]

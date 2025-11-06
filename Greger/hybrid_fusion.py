@@ -53,8 +53,9 @@ def load_recs(path, src_name):
     # keep only needed cols
     keep = [c for c in ["user_id","item_id","score","rank"] if c in df.columns]
     df = df[keep].copy()
-    df["user_id"] = df["user_id"].astype(str)
-    df["item_id"] = df["item_id"].astype(str)
+    df["user_id"] = df["user_id"].astype(str).str.strip()
+    df["item_id"] = df["item_id"].astype(str).str.strip()
+    df = df.drop_duplicates(subset=["user_id","item_id"], keep="first")
     if "score" not in df.columns:
         # if only rank present, invert rank as a proxy score
         df["score"] = -df["rank"].astype(float)
@@ -73,14 +74,18 @@ def add_user_z(df, score_col, out_col):
 
 def build_eval(df_path, thr):
     df = pd.read_csv(df_path)
-    df["user_id"] = df["user_id"].astype(str)
-    df["item_id"] = df["item_id"].astype(str)
+    df = df.dropna(subset=["user_id","item_id"]).copy()
+    df["user_id"] = df["user_id"].astype(str).str.strip()
+    df["item_id"] = df["item_id"].astype(str).str.strip()
     df["rating"]  = pd.to_numeric(df["rating"], errors="coerce").clip(1,5)
+    df = df.dropna(subset=["rating"])
+    df = df.drop_duplicates(subset=["user_id","item_id"], keep="last")
     return df[df["rating"] >= thr][["user_id","item_id","rating"]]
 
 def item_pop_from_train(train_path):
     tr = pd.read_csv(train_path)
-    tr["item_id"] = tr["item_id"].astype(str)
+    tr = tr.dropna(subset=["item_id"]).copy()
+    tr["item_id"] = tr["item_id"].astype(str).str.strip()
     pop = tr.groupby("item_id").size().astype(float)
     # log-scale then global z-norm
     lp = np.log1p(pop)

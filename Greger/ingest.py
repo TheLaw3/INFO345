@@ -4,9 +4,9 @@ from pathlib import Path
 import pandas as pd
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--ratings", default="/Users/gregersyvertsen/Documents/Info345/Dataset/Project/archive/Books_rating_cleaned.csv")
-    ap.add_argument("--items",   default="/Users/gregersyvertsen/Documents/Info345/Dataset/Project/archive/books_data.csv")
+    ap = argparse.ArgumentParser(description="Copy the raw data files into the project data/raw directory.")
+    ap.add_argument("--ratings", required=True, help="Path to the raw ratings CSV")
+    ap.add_argument("--items",   required=True, help="Path to the raw items CSV")
     ap.add_argument("--outdir",  default="data/raw")
     args = ap.parse_args()
 
