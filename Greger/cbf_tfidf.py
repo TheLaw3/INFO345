@@ -143,7 +143,13 @@ def main():
         cand_set = head.intersection(catalog_with_text)
         if not cand_set:
             cand_set = catalog_with_text
-    print(f"candidate_items={len(cand_set)}", flush=True)
+    cand_iids_all = [str(iid) for iid in sorted(cand_set)]
+    if not cand_iids_all:
+        raise ValueError("No candidate items available for recommendation.")
+    cand_idx_all = [idx_by_item[iid] for iid in cand_iids_all]
+    Xcand_all = X[cand_idx_all]
+    cand_pos = {iid: i for i, iid in enumerate(cand_iids_all)}
+    print(f"candidate_items={len(cand_iids_all)}", flush=True)
 
     def coverage_stats(split_df, split_name):
         rel = split_df[split_df["rating"] >= args.threshold]["item_id"].astype(str)
@@ -182,20 +188,19 @@ def main():
             prof = csr_matrix(prof_vec.reshape(1, -1))         # 1 x V CSR
             prof = normalize(prof, norm="l2", copy=False)
 
-            cand_iids = sorted(cand_set - seen[u])
-            if not cand_iids:
-                continue
-            cand_idx = [idx_by_item[iid] for iid in cand_iids]
-            Xcand = X[cand_idx]                                # Nc x V CSR
-            scores = Xcand.dot(prof.T).toarray().ravel()       # Nc floats
-
-            topk = min(args.k_top, scores.size)
+            # reuse precomputed candidate matrix and filter out seen items in-place
+            scores = Xcand_all.dot(prof.T).toarray().ravel()   # Nc floats
+            seen_idx = [cand_pos[iid] for iid in seen[u] if iid in cand_pos]
+            if seen_idx:
+                scores[seen_idx] = -np.inf
+            valid_idx = np.flatnonzero(np.isfinite(scores))
+            topk = min(args.k_top, valid_idx.size)
             if topk <= 0:
                 continue
-            top_idx = np.argpartition(-scores, topk-1)[:topk]
+            top_idx = valid_idx[np.argpartition(-scores[valid_idx], topk-1)[:topk]]
             top_sorted = top_idx[np.argsort(-scores[top_idx])]
             for r, j in enumerate(top_sorted, 1):
-                rows.append({"user_id": u, "item_id": cand_iids[j],
+                rows.append({"user_id": u, "item_id": str(cand_iids_all[j]),
                              "rank": r, "score": float(scores[j]), "source":"cbf_tfidf"})
 
             if i % 2000 == 0:
