@@ -63,7 +63,6 @@ class ItemKNN:
         self.neigh_sim = None
         self._inv_item_index = None
         self._seen = None
-        self._eff_neighbors = None
 
     def fit(self, train_df):
         train_df = train_df.drop_duplicates(subset=["user_id","item_id"], keep="last").copy()
@@ -147,7 +146,6 @@ def load_splits(train_path, val_path, test_path):
     test  = pd.read_csv(test_path)
     cleaned = []
     for df in (train, val, test):
-        df = df.dropna(subset=["user_id", "item_id"]).copy()
         df["user_id"] = df["user_id"].astype(str).str.strip()
         df["item_id"] = df["item_id"].astype(str).str.strip()
         df["rating"]  = pd.to_numeric(df["rating"], errors="coerce").clip(1,5)
@@ -155,6 +153,26 @@ def load_splits(train_path, val_path, test_path):
         df = df.drop_duplicates(subset=["user_id","item_id"], keep="last")
         cleaned.append(df)
     return cleaned
+
+def log_relevance_coverage(split_df, split_name, item_index, threshold):
+    rel = split_df[split_df["rating"] >= threshold][["user_id", "item_id"]].copy()
+    if rel.empty:
+        print(f"{split_name}: no interactions above threshold={threshold}", flush=True)
+        return
+
+    rel["item_id"] = rel["item_id"].astype(str).str.strip()
+    rel["covered"] = rel["item_id"].isin(item_index)
+
+    users_total = rel["user_id"].nunique()
+    users_with_covered = rel.groupby("user_id")["covered"].any().sum()
+    items_total = rel["item_id"].nunique()
+    items_covered = rel.loc[rel["covered"], "item_id"].nunique()
+
+    print(
+        f"{split_name}: relevant_items={items_total}, covered_items={items_covered}, "
+        f"users_with_covered={users_with_covered}/{users_total}",
+        flush=True,
+    )
 
 def log_relevance_coverage(split_df, split_name, item_index, threshold):
     rel = split_df[split_df["rating"] >= threshold][["user_id", "item_id"]].copy()

@@ -57,7 +57,6 @@ def load_splits(train_path, val_path, test_path):
     test  = pd.read_csv(test_path)
     cleaned = []
     for df in (train, val, test):
-        df = df.dropna(subset=["user_id", "item_id"]).copy()
         df["user_id"] = df["user_id"].astype(str).str.strip()
         df["item_id"] = df["item_id"].astype(str).str.strip()
         df["rating"]  = pd.to_numeric(df["rating"], errors="coerce").clip(1,5)
