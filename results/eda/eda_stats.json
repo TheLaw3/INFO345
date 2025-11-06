@@ -1,0 +1,28 @@
+{
+  "ratings_path": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/trainable_ratings.csv",
+  "items_path": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/items.csv",
+  "n_users": 81266,
+  "n_items": 62846,
+  "n_interactions": 1209202,
+  "density": 0.00023676218098033744,
+  "rating_summary": {
+    "count": 1209202.0,
+    "mean": 4.250999419451837,
+    "std": 1.1003928291159815,
+    "min": 1.0,
+    "25%": 4.0,
+    "50%": 5.0,
+    "75%": 5.0,
+    "max": 5.0
+  },
+  "rating_shares": {
+    "1.0": 0.045394,
+    "2.0": 0.046486,
+    "3.0": 0.099608,
+    "4.0": 0.228749,
+    "5.0": 0.579763
+  },
+  "users_with_single_rating_pct": 0.004762139147983167,
+  "items_with_single_rating_pct": 0.16389269006778473,
+  "top20pct_popularity_share": 0.8337920380548494
+}
