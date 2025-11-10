@@ -1,4 +1,28 @@
-# cf_sklearn.py
+"""Collaborative Filtering with item-kNN (cosine) using scikit-learn.
+
+This script trains an item-based k-nearest neighbors model on implicit/explicit
+ratings and evaluates Top-K recommendation quality on validation and test sets.
+
+Pipeline:
+  1) Load and lightly clean train/val/test CSVs.
+  2) Fit an item-kNN model (cosine similarity, brute force).
+  3) Generate per-user Top-K recommendations for val/test.
+  4) Compute precision@K, recall@K, nDCG@K, hit-rate@K.
+  5) Save recommendation files and a metrics JSON.
+
+CLI:
+  --train, --val, --test  Paths to ratings CSVs with user_id,item_id,rating
+  --k_top                 Number of recommendations per user (default: 10)
+  --neighbors             Item neighbors for kNN search (default: 200)
+  --threshold             Rating threshold for relevance (default: 4.0)
+  --outdir                Output directory (default: out/cf_sklearn)
+
+Outputs:
+  <outdir>/val_recs_knn_sklearn.csv
+  <outdir>/test_recs_knn_sklearn.csv
+  <outdir>/cf_sklearn_metrics.json
+"""
+
 import argparse, json, math
 from pathlib import Path
 import numpy as np
@@ -8,6 +32,16 @@ from sklearn.neighbors import NearestNeighbors
 
 #  metrics 
 def ndcg_at_k(rec_items, rel_set, k):
+    """Compute nDCG@k for a single user.
+
+    Args:
+      rec_items (Sequence[str]): Ranked recommended item_ids.
+      rel_set (set[str]): Set of relevant item_ids.
+      k (int): Cutoff K.
+
+    Returns:
+      float: nDCG@k in [0, 1]. 0 if k==0 or rel_set empty.
+    """
     if k == 0: return 0.0
     dcg = 0.0
     for rank, iid in enumerate(rec_items[:k], start=1):
@@ -19,17 +53,57 @@ def ndcg_at_k(rec_items, rel_set, k):
     return dcg / idcg
 
 def precision_at_k(rec_items, rel_set, k):
+    """Compute precision@k for a single user.
+
+    Args:
+      rec_items (Sequence[str]): Ranked recommended item_ids.
+      rel_set (set[str]): Set of relevant item_ids.
+      k (int): Cutoff K.
+
+    Returns:
+      float: Precision@k in [0, 1]. 0 if k==0.
+    """
     if k == 0: return 0.0
     return sum(i in rel_set for i in rec_items[:k]) / k
 
 def recall_at_k(rec_items, rel_set, k):
+    """Compute recall@k for a single user.
+
+    Args:
+      rec_items (Sequence[str]): Ranked recommended item_ids.
+      rel_set (set[str]): Set of relevant item_ids.
+      k (int): Cutoff K.
+
+    Returns:
+      float: Recall@k in [0, 1], or NaN if rel_set is empty.
+    """
     if not rel_set: return np.nan
     return sum(i in rel_set for i in rec_items[:k]) / len(rel_set)
 
 def hitrate_at_k(rec_items, rel_set, k):
+    """Compute hit-rate@k for a single user.
+
+    Args:
+      rec_items (Sequence[str]): Ranked recommended item_ids.
+      rel_set (set[str]): Set of relevant item_ids.
+      k (int): Cutoff K.
+
+    Returns:
+      float: 1.0 if any relevant item appears in top-k, else 0.0.
+    """
     return 1.0 if any(i in rel_set for i in rec_items[:k]) else 0.0
 
 def eval_topk(recs_df, eval_df, k):
+    """Aggregate Top-K metrics across users.
+
+    Args:
+      recs_df (pd.DataFrame): Columns [user_id,item_id,rank].
+      eval_df (pd.DataFrame): Relevant rows [user_id,item_id,rating].
+      k (int): Cutoff K.
+
+    Returns:
+      dict: users_evaluated and mean precision/recall/ndcg/hit_rate at K.
+    """
     rel_per_user = eval_df.groupby("user_id")["item_id"].apply(set)
     recs_k = recs_df[recs_df["rank"] <= k]
     got = recs_k.groupby("user_id")["item_id"].apply(list)
@@ -52,7 +126,26 @@ def eval_topk(recs_df, eval_df, k):
 
 #  CF model (item-kNN with cosine) 
 class ItemKNN:
+    """Item-based kNN recommender using cosine similarity.
+
+    Fits a kNN index over item vectors derived from the user-item rating matrix
+    (items as rows, users as columns). Precomputes per-item neighborhoods to
+    accelerate recommendation.
+
+    Attributes:
+      n_neighbors (int): Target neighbors per item (effective may be smaller).
+      metric (str): Distance metric for NearestNeighbors.
+      model (NearestNeighbors): Fitted scikit-learn kNN model.
+      item_index (dict[str,int]): item_id → column index.
+      user_index (dict[str,int]): user_id → row index.
+      R (csr_matrix): User-item rating matrix (users x items).
+      neigh_ind (np.ndarray): Neighbor indices per item.
+      neigh_sim (np.ndarray): Neighbor cosine similarities per item.
+      _inv_item_index (dict[int,str]): Column index → item_id.
+      _seen (dict[str,set[str]]): Items seen per user in training.
+    """
     def __init__(self, n_neighbors=200, metric="cosine"):
+        """Init the model with neighborhood size and metric."""
         self.n_neighbors = n_neighbors
         self.metric = metric
         self.model = NearestNeighbors(n_neighbors=n_neighbors+1, metric=metric, algorithm="brute")
@@ -65,6 +158,22 @@ class ItemKNN:
         self._seen = None
 
     def fit(self, train_df):
+        """Fit the item-kNN model on a cleaned training DataFrame.
+
+        Steps:
+          1) Deduplicate (user_id,item_id) pairs.
+          2) Map IDs to integer indices.
+          3) Build CSR user-item matrix with ratings as values.
+          4) Fit NearestNeighbors on item vectors (matrix transposed).
+          5) Precompute neighbors and convert distances to cosine similarities.
+          6) Cache per-user seen item sets.
+
+        Args:
+          train_df (pd.DataFrame): Columns user_id,item_id,rating.
+
+        Raises:
+          ValueError: If fewer than 2 distinct items are present.
+        """
         train_df = train_df.drop_duplicates(subset=["user_id","item_id"], keep="last").copy()
         # map ids
         users = train_df["user_id"].astype(str).unique()
@@ -100,6 +209,19 @@ class ItemKNN:
                       for u, g in train_df.groupby("user_id")}
 
     def recommend_for_users(self, eval_users, K=10, max_neigh=None):
+        """Recommend Top-K items for a list of users.
+
+        For each user, score candidate items via a weighted sum of neighbor
+        similarities over the user's rated items, skipping items already seen.
+
+        Args:
+          eval_users (Iterable[str|int]): Users to generate recommendations for.
+          K (int): Number of items to recommend per user.
+          max_neigh (int | None): Optional cap on neighbors used per anchor item.
+
+        Returns:
+          pd.DataFrame: Rows [user_id,item_id,rank,score,source].
+        """
         eff = self._eff_neighbors or self.n_neighbors
         if max_neigh is None or max_neigh > eff:
             max_neigh = eff
@@ -141,6 +263,22 @@ class ItemKNN:
         return pd.DataFrame(rows)
 
 def load_splits(train_path, val_path, test_path):
+    """Load and lightly clean ratings splits.
+
+    Cleaning:
+      - Cast IDs to str and strip whitespace.
+      - Coerce rating to numeric and clamp to [1,5].
+      - Drop rows with missing rating.
+      - Keep last duplicate per (user_id,item_id).
+
+    Args:
+      train_path (str|Path): Train CSV.
+      val_path (str|Path): Validation CSV.
+      test_path (str|Path): Test CSV.
+
+    Returns:
+      list[pd.DataFrame]: [train, val, test] cleaned DataFrames.
+    """
     train = pd.read_csv(train_path)
     val   = pd.read_csv(val_path)
     test  = pd.read_csv(test_path)
@@ -155,6 +293,14 @@ def load_splits(train_path, val_path, test_path):
     return cleaned
 
 def log_relevance_coverage(split_df, split_name, item_index, threshold):
+    """Log coverage stats of relevant items present in the trained catalog.
+
+    Args:
+      split_df (pd.DataFrame): Ratings split.
+      split_name (str): Name used for logging ("val" or "test").
+      item_index (Collection[str]): Set/dict of item_ids known to the model.
+      threshold (float): Rating >= threshold is considered relevant.
+    """
     rel = split_df[split_df["rating"] >= threshold][["user_id", "item_id"]].copy()
     if rel.empty:
         print(f"{split_name}: no interactions above threshold={threshold}", flush=True)
@@ -175,6 +321,17 @@ def log_relevance_coverage(split_df, split_name, item_index, threshold):
     )
 
 def log_relevance_coverage(split_df, split_name, item_index, threshold):
+    """Log coverage stats of relevant items present in the trained catalog.
+
+    Note: This function is defined twice in the file; the latter definition
+    overwrites the former. Kept as-is to preserve original structure.
+
+    Args:
+      split_df (pd.DataFrame): Ratings split.
+      split_name (str): Name used for logging ("val" or "test").
+      item_index (Collection[str]): Set/dict of item_ids known to the model.
+      threshold (float): Rating >= threshold is considered relevant.
+    """
     rel = split_df[split_df["rating"] >= threshold][["user_id", "item_id"]].copy()
     if rel.empty:
         print(f"{split_name}: no interactions above threshold={threshold}", flush=True)
@@ -195,6 +352,7 @@ def log_relevance_coverage(split_df, split_name, item_index, threshold):
     )
 
 if __name__ == "__main__":
+    # CLI parsing
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", required=True)
     ap.add_argument("--val",   required=True)

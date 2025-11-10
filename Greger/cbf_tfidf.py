@@ -1,4 +1,30 @@
 # Greger/cbf_tfidf.py — CBF TF-IDF (fixed types + optional candidate cap + progress logs)
+"""Content-based filtering using TF-IDF item text with optional candidate cap.
+
+Pipeline:
+  1) Load standardized train/val/test ratings and items.
+  2) Ensure a text field per item (compose from Title/Categories if missing).
+  3) Fit a TF-IDF vectorizer over item text.
+  4) Build user profiles from liked items (rating ≥ threshold) and score
+     candidates via cosine similarity, excluding already seen items.
+  5) Emit top-K recommendations and evaluate precision/recall/nDCG/hit-rate.
+
+CLI:
+  --train/--val/--test   Paths to ratings CSVs with user_id,item_id,rating.
+  --items                Items CSV with item_id and optional text/title/categories.
+  --text_col             Name of text column to use/create (default: "text").
+  --k_top                Cutoff K for recommendations (default: 10).
+  --threshold            Rating ≥ threshold marks relevance and “liked” (default: 4.0).
+  --min_df, --max_features, --ngram_max, --stop_words  TF-IDF hyperparams.
+  --cand_pool            0 = full catalog; >0 = cap candidate set by popularity head.
+  --limit_users_val/test Optional user caps for quick runs.
+  --outdir               Output directory (default: out/cbf).
+
+Outputs:
+  - <outdir>/val_recs_cbf.csv, <outdir>/test_recs_cbf.csv
+  - <outdir>/cbf_metrics.json with params and Top-K metrics.
+"""
+
 import argparse, json, math
 from pathlib import Path
 import numpy as np
@@ -9,6 +35,16 @@ from sklearn.preprocessing import normalize
 
 # metrics
 def ndcg_at_k(rec_items, rel_set, k):
+    """Compute nDCG@k for a single user.
+
+    Args:
+      rec_items (Sequence[str]): Ranked recommended item_ids.
+      rel_set (set[str]): Relevant item_ids.
+      k (int): Cutoff.
+
+    Returns:
+      float: nDCG@k in [0,1]. Returns 0 if k==0 or no relevant items.
+    """
     if k == 0: return 0.0
     dcg = 0.0
     for rank, iid in enumerate(rec_items[:k], start=1):
@@ -19,17 +55,57 @@ def ndcg_at_k(rec_items, rel_set, k):
     return dcg / idcg
 
 def precision_at_k(rec_items, rel_set, k):
+    """Compute precision@k for a single user.
+
+    Args:
+      rec_items (Sequence[str]): Ranked recommended item_ids.
+      rel_set (set[str]): Relevant item_ids.
+      k (int): Cutoff.
+
+    Returns:
+      float: Precision@k in [0,1]. Returns 0 if k==0.
+    """
     if k == 0: return 0.0
     return sum(i in rel_set for i in rec_items[:k]) / k
 
 def recall_at_k(rec_items, rel_set, k):
+    """Compute recall@k for a single user.
+
+    Args:
+      rec_items (Sequence[str]): Ranked recommended item_ids.
+      rel_set (set[str]): Relevant item_ids.
+      k (int): Cutoff.
+
+    Returns:
+      float: Recall@k in [0,1], or NaN if rel_set is empty.
+    """
     if not rel_set: return np.nan
     return sum(i in rel_set for i in rec_items[:k]) / len(rel_set)
 
 def hitrate_at_k(rec_items, rel_set, k):
+    """Compute hit-rate@k for a single user.
+
+    Args:
+      rec_items (Sequence[str]): Ranked recommended item_ids.
+      rel_set (set[str]): Relevant item_ids.
+      k (int): Cutoff.
+
+    Returns:
+      float: 1.0 if any hit within top-k, else 0.0.
+    """
     return 1.0 if any(i in rel_set for i in rec_items[:k]) else 0.0
 
 def eval_topk(recs_df, eval_df, k):
+    """Aggregate Top-K metrics across users.
+
+    Args:
+      recs_df (pd.DataFrame): Columns [user_id, item_id, rank]; lower rank is better.
+      eval_df (pd.DataFrame): Relevant rows with columns [user_id, item_id, rating].
+      k (int): Cutoff.
+
+    Returns:
+      dict: users_evaluated, precision@k, recall@k, ndcg@k, hit_rate@k (means).
+    """
     rel_per_user = eval_df.groupby("user_id")["item_id"].apply(set)
     recs_k = recs_df[recs_df["rank"] <= k]
     got = recs_k.groupby("user_id")["item_id"].apply(list)
@@ -52,6 +128,22 @@ def eval_topk(recs_df, eval_df, k):
 
 #  helpers 
 def load_splits(train_path, val_path, test_path):
+    """Load and lightly clean ratings splits.
+
+    Cleaning:
+      - Cast user_id/item_id to str and strip.
+      - Coerce rating to numeric in [1,5].
+      - Drop NaN ratings.
+      - Keep last duplicate per (user_id,item_id).
+
+    Args:
+      train_path (str | Path): Train CSV path.
+      val_path (str | Path): Validation CSV path.
+      test_path (str | Path): Test CSV path.
+
+    Returns:
+      tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: (train, val, test).
+    """
     train = pd.read_csv(train_path)
     val   = pd.read_csv(val_path)
     test  = pd.read_csv(test_path)
@@ -67,6 +159,15 @@ def load_splits(train_path, val_path, test_path):
     return train, val, test
 
 def pick(colnames, candidates):
+    """Pick first matching column name using case-insensitive aliases.
+
+    Args:
+      colnames (Iterable[str]): Available columns.
+      candidates (Iterable[str]): Ordered aliases to try.
+
+    Returns:
+      str | None: The matched name from colnames, or None if none match.
+    """
     s = {c.lower(): c for c in colnames}
     for c in candidates:
         if c in colnames: return c
@@ -75,6 +176,19 @@ def pick(colnames, candidates):
 
 #  main 
 def main():
+    """Build TF-IDF CBF scores with optional candidate cap and evaluate.
+
+    Steps:
+      - Load splits and items.
+      - Ensure per-item text field; compose from title/categories if absent.
+      - Fit TF-IDF with provided hyperparameters.
+      - For each user, build a normalized profile from liked items (rating ≥ threshold).
+      - Score candidate items, exclude seen, take top-K.
+      - Write rec files and a metrics JSON.
+
+    Raises:
+      ValueError: If no candidate items are available for recommendation.
+    """
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", required=True)
     ap.add_argument("--val",   required=True)
@@ -152,6 +266,12 @@ def main():
     print(f"candidate_items={len(cand_iids_all)}", flush=True)
 
     def coverage_stats(split_df, split_name):
+        """Log coverage of relevant items that have text representations.
+
+        Args:
+          split_df (pd.DataFrame): Ratings split.
+          split_name (str): Name for logging.
+        """
         rel = split_df[split_df["rating"] >= args.threshold]["item_id"].astype(str)
         rel = rel.str.strip()
         total = rel.nunique()
@@ -162,6 +282,17 @@ def main():
     coverage_stats(test, "test")
 
     def recommend_for_users(eval_df, split_name):
+        """Produce top-K recommendations for users in a split.
+
+        Users must have at least one liked item in train to form a profile.
+
+        Args:
+          eval_df (pd.DataFrame): Split dataframe with user_id,item_id,rating.
+          split_name (str): "val" or "test".
+
+        Returns:
+          pd.DataFrame: Rows [user_id,item_id,rank,score,source] for the split.
+        """
         users = eval_df["user_id"].astype(str).unique().tolist()
         if split_name == "val"  and args.limit_users_val:  users = users[:args.limit_users_val]
         if split_name == "test" and args.limit_users_test: users = users[:args.limit_users_test]
@@ -182,13 +313,14 @@ def main():
             if not liked_idx:
                 continue
 
+            # Weighted profile by rating surplus above threshold; L2-normalized.
             w = (utrain["rating"].to_numpy(dtype=float) - args.threshold)
             w = np.clip(w, 0.0, None)                          # L
             prof_vec = X[liked_idx].T.dot(w)                   # V ndarray
             prof = csr_matrix(prof_vec.reshape(1, -1))         # 1 x V CSR
             prof = normalize(prof, norm="l2", copy=False)
 
-            # reuse precomputed candidate matrix and filter out seen items in-place
+            # Score candidates and mask already-seen.
             scores = Xcand_all.dot(prof.T).toarray().ravel()   # Nc floats
             seen_idx = [cand_pos[iid] for iid in seen[u] if iid in cand_pos]
             if seen_idx:
@@ -197,6 +329,7 @@ def main():
             topk = min(args.k_top, valid_idx.size)
             if topk <= 0:
                 continue
+            # Partial selection for top-k, then order by score desc.
             top_idx = valid_idx[np.argpartition(-scores[valid_idx], topk-1)[:topk]]
             top_sorted = top_idx[np.argsort(-scores[top_idx])]
             for r, j in enumerate(top_sorted, 1):

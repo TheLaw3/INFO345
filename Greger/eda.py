@@ -11,6 +11,20 @@ import pandas as pd
 
 
 def load_ratings(path: Path) -> pd.DataFrame:
+    """Load and clean a standardized ratings CSV.
+
+    Ensures presence of columns {user_id, item_id, rating}, coerces rating to
+    numeric in [1, 5], strips identifiers, and drops invalid rows.
+
+    Args:
+      path: Path to a CSV file with columns user_id, item_id, rating.
+
+    Returns:
+      A cleaned pandas DataFrame with columns user_id, item_id, rating.
+
+    Raises:
+      ValueError: If required columns are missing or all rows become invalid.
+    """
     df = pd.read_csv(path, low_memory=False)
     required = {"user_id", "item_id", "rating"}
     if not required.issubset(df.columns):
@@ -26,6 +40,18 @@ def load_ratings(path: Path) -> pd.DataFrame:
 
 
 def attach_titles(ratings: pd.DataFrame, items_path: Path) -> pd.DataFrame:
+    """Merge human-readable item metadata into the ratings frame if available.
+
+    Joins on item_id using an items CSV and carries over common metadata fields
+    such as Title/title, Categories/categories, and text.
+
+    Args:
+      ratings: Cleaned ratings DataFrame with column item_id.
+      items_path: Path to items CSV. If missing or malformed, ratings are returned unchanged.
+
+    Returns:
+      Ratings DataFrame with additional metadata columns when present.
+    """
     if not items_path.exists():
         return ratings
     items = pd.read_csv(items_path, low_memory=False)
@@ -42,6 +68,15 @@ def attach_titles(ratings: pd.DataFrame, items_path: Path) -> pd.DataFrame:
 
 
 def hist(ax, series, bins, title, xlabel):
+    """Plot a linear-scale histogram on the provided axes.
+
+    Args:
+      ax: Matplotlib Axes to draw on.
+      series: 1D array-like of numeric values.
+      bins: Number of bins or bin edges.
+      title: Plot title.
+      xlabel: X-axis label.
+    """
     ax.hist(series, bins=bins)
     ax.set_title(title)
     ax.set_xlabel(xlabel)
@@ -49,6 +84,15 @@ def hist(ax, series, bins, title, xlabel):
 
 
 def log_hist(ax, series, bins, title, xlabel):
+    """Plot a histogram with log-scaled axes.
+
+    Args:
+      ax: Matplotlib Axes to draw on.
+      series: 1D array-like of numeric values.
+      bins: Number of bins or bin edges (use log-spaced for readability).
+      title: Plot title.
+      xlabel: X-axis label.
+    """
     ax.hist(series, bins=bins)
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -58,6 +102,22 @@ def log_hist(ax, series, bins, title, xlabel):
 
 
 def main() -> None:
+    """Generate summary stats and optional histograms for standardized ratings.
+
+    CLI:
+      --ratings     Path to trainable_ratings.csv (default: data/trainable_ratings.csv)
+      --items       Path to items.csv for title/categories merge (default: data/items.csv)
+      --outdir      Output directory for reports and plots (default: results/eda)
+      --save-plots  If set, save PNG histograms under <outdir>/plots
+
+    Outputs:
+      - <outdir>/eda_stats.json with core dataset statistics.
+      - Optional PNGs: ratings_hist, user_activity_hist, item_popularity_hist,
+        user_activity_loglog, item_popularity_loglog.
+
+    Raises:
+      ValueError: If ratings are missing required columns or contain no valid rows after cleaning.
+    """
     ap = argparse.ArgumentParser(description="Generate quick EDA summaries for standardized ratings data.")
     ap.add_argument("--ratings", default="data/trainable_ratings.csv")
     ap.add_argument("--items", default="data/items.csv")
@@ -135,7 +195,7 @@ def main() -> None:
         if len(user_activity):
             fig, ax = plt.subplots()
             max_user = max(1, user_activity.max())
-            bins_u = np.logspace(0, np.log10(max_user), 50)
+            bins_u = np.logspace(0, np.log10(max_user), 50)  # log-spaced bins for readability
             log_hist(ax, user_activity, bins=bins_u, title="User activity (log-log)", xlabel="#ratings per user")
             fig.tight_layout()
             fig.savefig(plots_dir / "user_activity_loglog.png")
@@ -144,7 +204,7 @@ def main() -> None:
         if len(item_pop):
             fig, ax = plt.subplots()
             max_item = max(1, item_pop.max())
-            bins_i = np.logspace(0, np.log10(max_item), 50)
+            bins_i = np.logspace(0, np.log10(max_item), 50)  # log-spaced bins for readability
             log_hist(ax, item_pop, bins=bins_i, title="Item popularity (log-log)", xlabel="#ratings per item")
             fig.tight_layout()
             fig.savefig(plots_dir / "item_popularity_loglog.png")

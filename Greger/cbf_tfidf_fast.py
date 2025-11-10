@@ -1,4 +1,30 @@
 # Greger/cbf_tfidf_fast.py — CBF TF-IDF with candidate pool + precomputed user likes
+"""Content-based filtering using TF-IDF item profiles and user-like aggregation.
+
+Pipeline:
+  1) Load and clean train/val/test splits and item metadata.
+  2) Build a TF-IDF matrix over an item-level text field.
+  3) For each user, aggregate liked-items' TF-IDF vectors into a normalized profile.
+  4) Score a capped candidate pool via cosine similarity, exclude seen items, and
+     emit top-K per user for val/test.
+  5) Evaluate with precision/recall/nDCG/hit-rate at K and write metrics.
+
+Inputs (CLI):
+  --train, --val, --test: Paths to ratings CSVs with columns [user_id, item_id, rating].
+  --items:                Items CSV with item_id and a text field (or fields to compose one).
+  --text_col:             Name of the text column in items (default: "text").
+  --k_top:                Cutoff K for top-K recommendations.
+  --threshold:            Rating >= threshold marks relevance and "liked" in training.
+  --min_df, --max_features, --ngram_max, --stop_words: TF-IDF hyperparameters.
+  --cand_pool:            Cap on candidate items by popularity head.
+  --limit_users_val/test: Optional caps on users for quick runs.
+  --outdir:               Output directory for recs and metrics.
+
+Outputs:
+  - outdir/val_recs_cbf.csv, outdir/test_recs_cbf.csv
+  - outdir/cbf_metrics.json
+"""
+
 import argparse, json, math
 from pathlib import Path
 import numpy as np
@@ -8,6 +34,16 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import normalize
 
 def ndcg_at_k(rec_items, rel_set, k):
+    """Compute nDCG@k for a single user.
+
+    Args:
+      rec_items: Ordered list of recommended item_ids.
+      rel_set: Set of relevant item_ids.
+      k: Rank cutoff.
+
+    Returns:
+      float: Normalized DCG at k in [0, 1]. 0 if no relevant items or k==0.
+    """
     if k == 0: return 0.0
     dcg = 0.0
     for rank, iid in enumerate(rec_items[:k], start=1):
@@ -18,17 +54,57 @@ def ndcg_at_k(rec_items, rel_set, k):
     return dcg / idcg
 
 def precision_at_k(rec_items, rel_set, k):
+    """Compute precision@k for a single user.
+
+    Args:
+      rec_items: Ordered list of recommended item_ids.
+      rel_set: Set of relevant item_ids.
+      k: Rank cutoff.
+
+    Returns:
+      float: Precision at k in [0, 1]. 0 if k==0.
+    """
     if k == 0: return 0.0
     return sum(i in rel_set for i in rec_items[:k]) / k
 
 def recall_at_k(rec_items, rel_set, k):
+    """Compute recall@k for a single user.
+
+    Args:
+      rec_items: Ordered list of recommended item_ids.
+      rel_set: Set of relevant item_ids.
+      k: Rank cutoff.
+
+    Returns:
+      float: Recall at k in [0, 1], or NaN if rel_set is empty.
+    """
     if not rel_set: return np.nan
     return sum(i in rel_set for i in rec_items[:k]) / len(rel_set)
 
 def hitrate_at_k(rec_items, rel_set, k):
+    """Compute hit-rate@k for a single user.
+
+    Args:
+      rec_items: Ordered list of recommended item_ids.
+      rel_set: Set of relevant item_ids.
+      k: Rank cutoff.
+
+    Returns:
+      float: 1.0 if any relevant item appears in top-k, else 0.0.
+    """
     return 1.0 if any(i in rel_set for i in rec_items[:k]) else 0.0
 
 def eval_topk(recs_df, eval_df, k):
+    """Evaluate top-K recommendations against relevance per user.
+
+    Args:
+      recs_df: DataFrame with columns [user_id, item_id, rank].
+      eval_df: DataFrame with columns [user_id, item_id, rating] filtered to relevant rows.
+      k: Rank cutoff.
+
+    Returns:
+      dict: Mean precision@k, recall@k, ndcg@k, hit_rate@k across evaluated users.
+    """
     rel_per_user = eval_df.groupby("user_id")["item_id"].apply(set)
     recs_k = recs_df[recs_df["rank"] <= k]
     got = recs_k.groupby("user_id")["item_id"].apply(list)
@@ -50,6 +126,22 @@ def eval_topk(recs_df, eval_df, k):
     }
 
 def load_splits(train_path, val_path, test_path):
+    """Load and clean train/val/test ratings splits.
+
+    Cleaning:
+      - Drop rows with missing user_id/item_id.
+      - Strip identifiers and coerce rating to [1, 5].
+      - Drop rows with NaN ratings.
+      - Keep last duplicate per (user_id,item_id).
+
+    Args:
+      train_path: CSV path for training ratings.
+      val_path: CSV path for validation ratings.
+      test_path: CSV path for test ratings.
+
+    Returns:
+      tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: (train, val, test) cleaned frames.
+    """
     train = pd.read_csv(train_path)
     val   = pd.read_csv(val_path)
     test  = pd.read_csv(test_path)
@@ -66,6 +158,15 @@ def load_splits(train_path, val_path, test_path):
     return train, val, test
 
 def pick(colnames, candidates):
+    """Pick the first matching column name using case-insensitive aliases.
+
+    Args:
+      colnames: Iterable of available column names.
+      candidates: Ordered aliases to try.
+
+    Returns:
+      str | None: The matched column name as present in colnames, or None.
+    """
     s = {c.lower(): c for c in colnames}
     for c in candidates:
         if c in colnames: return c
@@ -73,6 +174,17 @@ def pick(colnames, candidates):
     return None
 
 def main():
+    """Build TF-IDF CBF recommendations with a capped candidate pool and evaluate.
+
+    Steps:
+      - Load splits and items, create or compose a text field.
+      - Fit TF-IDF, construct user profiles from liked items (rating >= threshold).
+      - Score candidates via cosine similarity and write top-K recs for val/test.
+      - Compute top-K metrics and save a metrics JSON.
+
+    Raises:
+      ValueError: If no candidate items are available for recommendation.
+    """
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", required=True)
     ap.add_argument("--val",   required=True)
@@ -94,6 +206,7 @@ def main():
     outdir = Path(args.outdir); outdir.mkdir(parents=True, exist_ok=True)
     train, val, test = load_splits(args.train, args.val, args.test)
 
+    # Prepare item text field; compose from title/categories if needed.
     items = pd.read_csv(args.items)
     id_col = "item_id" if "item_id" in items.columns else "Id"
     items["item_id"] = items[id_col].astype(str).str.strip()
@@ -115,13 +228,16 @@ def main():
     item_ids = items["item_id"].tolist()
     idx_by_item = {iid:i for i, iid in enumerate(item_ids)}
 
+    # Fit TF-IDF on item texts. Use stop_words=None if "none" given.
     vec = TfidfVectorizer(min_df=args.min_df, max_features=args.max_features,
                           ngram_range=(1, args.ngram_max), stop_words=(None if args.stop_words=="none" else args.stop_words))
     X = vec.fit_transform(items[tcol].values)  # CSR [n_items, V]
     print(f"TFIDF: items={X.shape[0]}, terms={X.shape[1]}", flush=True)
 
+    # Build per-user sets of seen items from train to avoid re-recommending.
     seen = {u: set(g["item_id"].astype(str).str.strip()) for u, g in train.groupby("user_id")}
 
+    # Candidate pool: popularity head capped to cand_pool; fallback to full catalog.
     pop = train.groupby("item_id").size().sort_values(ascending=False)
     cand_head = set(pop.index.astype(str)[:args.cand_pool]).intersection(idx_by_item.keys())
     if not cand_head:
@@ -134,6 +250,7 @@ def main():
     cand_pos = {iid: i for i, iid in enumerate(cand_iids_all)}
     print(f"cand_pool={len(cand_iids_all)}", flush=True)
 
+    # Precompute user "likes" indices and optional weights from rating surplus above threshold.
     liked = train[(train["rating"] >= args.threshold) & (train["item_id"].isin(idx_by_item.keys()))].copy()
     liked["iid_idx"] = liked["item_id"].map(idx_by_item).astype("Int64")
     liked = liked.dropna(subset=["iid_idx"])
@@ -143,6 +260,17 @@ def main():
     weights_by_u   = {u: g["w"].to_numpy()            for u, g in grp}
 
     def recommend_for_split(eval_df, split_name):
+        """Produce top-K recommendations for users present in a split.
+
+        Users must exist in training 'seen' and have at least one liked item.
+
+        Args:
+          eval_df: Split dataframe with columns [user_id, item_id, rating].
+          split_name: "val" or "test" for logging and user limiting.
+
+        Returns:
+          pd.DataFrame: Rows [user_id, item_id, rank, score, source] for the split.
+        """
         users = eval_df["user_id"].astype(str).unique().tolist()
         users = [u for u in users if u in seen and u in liked_idx_by_u]
         if split_name == "val"  and args.limit_users_val:  users = users[:args.limit_users_val]
@@ -156,11 +284,14 @@ def main():
             if li.size == 0: 
                 continue
 
+            # User profile: weighted sum over liked item TF-IDF vectors, L2-normalized.
             prof_vec = X[li].T.dot(w)                         # V-length ndarray
             prof = csr_matrix(prof_vec.reshape(1, -1))
             prof = normalize(prof, norm="l2", copy=False)
 
+            # Cosine similarity to candidates equals dot(Xcand, prof.T) for L2-normalized vectors.
             scores = Xcand_all.dot(prof.T).toarray().ravel()  # Nc floats
+            # Mask already-seen items by setting score to -inf.
             seen_idx = [cand_pos[iid] for iid in seen[u] if iid in cand_pos]
             if seen_idx:
                 scores[seen_idx] = -np.inf
@@ -168,6 +299,7 @@ def main():
             topk = min(args.k_top, valid_idx.size)
             if topk <= 0:
                 continue
+            # Partial top-k selection without full sort, then stable order by score desc.
             top_idx = valid_idx[np.argpartition(-scores[valid_idx], topk-1)[:topk]]
             top_sorted = top_idx[np.argsort(-scores[top_idx])]
             for r, j in enumerate(top_sorted, 1):
@@ -182,6 +314,7 @@ def main():
     recs_val.to_csv(outdir/"val_recs_cbf.csv", index=False)
     recs_test.to_csv(outdir/"test_recs_cbf.csv", index=False)
 
+    # Evaluate at k_top using thresholded relevance.
     vr = val[val["rating"]  >= args.threshold][["user_id","item_id","rating"]]
     tr = test[test["rating"] >= args.threshold][["user_id","item_id","rating"]]
     res_val  = eval_topk(recs_val,  vr, args.k_top)
