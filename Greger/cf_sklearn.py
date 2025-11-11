@@ -21,6 +21,16 @@ Outputs:
   <outdir>/val_recs_knn_sklearn.csv
   <outdir>/test_recs_knn_sklearn.csv
   <outdir>/cf_sklearn_metrics.json
+
+Why these libraries:
+  pandas: reliable CSV I/O and grouping; consistent with other modules.
+  numpy: numeric ops and array handling during evaluation and scoring.
+  scipy.sparse: CSR matrices for user–item data keep memory usage low.
+  scikit-learn: NearestNeighbors provides a tested brute-force cosine kNN.
+
+Limitations:
+  - Cold-start items and users cannot be recommended or evaluated.
+  - Raw ratings used directly; no mean-centering or normalization per user/item.
 """
 
 import argparse, json, math
@@ -32,15 +42,8 @@ from sklearn.neighbors import NearestNeighbors
 
 #  metrics 
 def ndcg_at_k(rec_items, rel_set, k):
-    """Compute nDCG@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked recommended item_ids.
-      rel_set (set[str]): Set of relevant item_ids.
-      k (int): Cutoff K.
-
-    Returns:
-      float: nDCG@k in [0, 1]. 0 if k==0 or rel_set empty.
+    """
+    Compute nDCG@k for a single user.
     """
     if k == 0: return 0.0
     dcg = 0.0
@@ -53,56 +56,28 @@ def ndcg_at_k(rec_items, rel_set, k):
     return dcg / idcg
 
 def precision_at_k(rec_items, rel_set, k):
-    """Compute precision@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked recommended item_ids.
-      rel_set (set[str]): Set of relevant item_ids.
-      k (int): Cutoff K.
-
-    Returns:
-      float: Precision@k in [0, 1]. 0 if k==0.
+    """
+    Compute precision@k for a single user.
     """
     if k == 0: return 0.0
     return sum(i in rel_set for i in rec_items[:k]) / k
 
 def recall_at_k(rec_items, rel_set, k):
-    """Compute recall@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked recommended item_ids.
-      rel_set (set[str]): Set of relevant item_ids.
-      k (int): Cutoff K.
-
-    Returns:
-      float: Recall@k in [0, 1], or NaN if rel_set is empty.
+    """
+    Compute recall@k for a single user.
     """
     if not rel_set: return np.nan
     return sum(i in rel_set for i in rec_items[:k]) / len(rel_set)
 
 def hitrate_at_k(rec_items, rel_set, k):
-    """Compute hit-rate@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked recommended item_ids.
-      rel_set (set[str]): Set of relevant item_ids.
-      k (int): Cutoff K.
-
-    Returns:
-      float: 1.0 if any relevant item appears in top-k, else 0.0.
+    """
+    Compute hit-rate@k for a single user.
     """
     return 1.0 if any(i in rel_set for i in rec_items[:k]) else 0.0
 
 def eval_topk(recs_df, eval_df, k):
-    """Aggregate Top-K metrics across users.
-
-    Args:
-      recs_df (pd.DataFrame): Columns [user_id,item_id,rank].
-      eval_df (pd.DataFrame): Relevant rows [user_id,item_id,rating].
-      k (int): Cutoff K.
-
-    Returns:
-      dict: users_evaluated and mean precision/recall/ndcg/hit_rate at K.
+    """
+    Aggregate Top-K metrics across users.
     """
     rel_per_user = eval_df.groupby("user_id")["item_id"].apply(set)
     recs_k = recs_df[recs_df["rank"] <= k]
@@ -167,12 +142,6 @@ class ItemKNN:
           4) Fit NearestNeighbors on item vectors (matrix transposed).
           5) Precompute neighbors and convert distances to cosine similarities.
           6) Cache per-user seen item sets.
-
-        Args:
-          train_df (pd.DataFrame): Columns user_id,item_id,rating.
-
-        Raises:
-          ValueError: If fewer than 2 distinct items are present.
         """
         train_df = train_df.drop_duplicates(subset=["user_id","item_id"], keep="last").copy()
         # map ids
@@ -213,14 +182,6 @@ class ItemKNN:
 
         For each user, score candidate items via a weighted sum of neighbor
         similarities over the user's rated items, skipping items already seen.
-
-        Args:
-          eval_users (Iterable[str|int]): Users to generate recommendations for.
-          K (int): Number of items to recommend per user.
-          max_neigh (int | None): Optional cap on neighbors used per anchor item.
-
-        Returns:
-          pd.DataFrame: Rows [user_id,item_id,rank,score,source].
         """
         eff = self._eff_neighbors or self.n_neighbors
         if max_neigh is None or max_neigh > eff:
@@ -266,18 +227,10 @@ def load_splits(train_path, val_path, test_path):
     """Load and lightly clean ratings splits.
 
     Cleaning:
-      - Cast IDs to str and strip whitespace.
-      - Coerce rating to numeric and clamp to [1,5].
-      - Drop rows with missing rating.
-      - Keep last duplicate per (user_id,item_id).
-
-    Args:
-      train_path (str|Path): Train CSV.
-      val_path (str|Path): Validation CSV.
-      test_path (str|Path): Test CSV.
-
-    Returns:
-      list[pd.DataFrame]: [train, val, test] cleaned DataFrames.
+      Cast IDs to str and strip whitespace.
+      Coerce rating to numeric and clamp to [1,5].
+      Drop rows with missing rating.
+      Keep last duplicate per (user_id,item_id).
     """
     train = pd.read_csv(train_path)
     val   = pd.read_csv(val_path)
@@ -293,13 +246,8 @@ def load_splits(train_path, val_path, test_path):
     return cleaned
 
 def log_relevance_coverage(split_df, split_name, item_index, threshold):
-    """Log coverage stats of relevant items present in the trained catalog.
-
-    Args:
-      split_df (pd.DataFrame): Ratings split.
-      split_name (str): Name used for logging ("val" or "test").
-      item_index (Collection[str]): Set/dict of item_ids known to the model.
-      threshold (float): Rating >= threshold is considered relevant.
+    """
+    Log coverage stats of relevant items present in the trained catalog.
     """
     rel = split_df[split_df["rating"] >= threshold][["user_id", "item_id"]].copy()
     if rel.empty:
@@ -321,16 +269,8 @@ def log_relevance_coverage(split_df, split_name, item_index, threshold):
     )
 
 def log_relevance_coverage(split_df, split_name, item_index, threshold):
-    """Log coverage stats of relevant items present in the trained catalog.
-
-    Note: This function is defined twice in the file; the latter definition
-    overwrites the former. Kept as-is to preserve original structure.
-
-    Args:
-      split_df (pd.DataFrame): Ratings split.
-      split_name (str): Name used for logging ("val" or "test").
-      item_index (Collection[str]): Set/dict of item_ids known to the model.
-      threshold (float): Rating >= threshold is considered relevant.
+    """
+    Log coverage stats of relevant items present in the trained catalog.
     """
     rel = split_df[split_df["rating"] >= threshold][["user_id", "item_id"]].copy()
     if rel.empty:

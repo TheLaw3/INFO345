@@ -9,23 +9,36 @@ This script:
   6) Produces a CF-ready ratings subset using user/item activity thresholds.
   7) Saves artifacts and a JSON summary report.
 
-Inputs (CLI flags):
+Inputs:
   --ratings  Raw ratings CSV path (default: data/raw/books_rating_cleaned.raw.csv)
   --items    Raw items CSV path   (default: data/raw/books_data.raw.csv)
   --outdir   Output directory     (default: data)
   --min_user Minimum interactions per user to keep in CF subset (default: 5)
   --min_item Minimum interactions per item to keep in CF subset (default: 5)
 
-Outputs (written under --outdir):
-  - trainable_ratings.csv   Cleaned ratings with canonical columns.
-  - items.csv               Item catalog with text field and optional Title/Categories.
-  - ratings_cf_train.csv    CF-ready subset filtered by min_user/min_item.
-  - preprocess_report.json  Row/user/item counts and file paths.
+Outputs:
+  trainable_ratings.csv   Cleaned ratings with canonical columns.
+  items.csv               Item catalog with text field and optional Title/Categories.
+  ratings_cf_train.csv    CF-ready subset filtered by min_user/min_item.
+  preprocess_report.json  Row/user/item counts and file paths.
 
-Notes:
-  - Column picking is case-insensitive and uses a list of candidate aliases.
-  - Title-based metadata enrichment uses lowercased, stripped strings; duplicates resolved by keeping
-    the row with the longest text field.
+Assumptions and invariants:
+  Ratings are on a 1–5 scale; relevance thresholding is deferred to later stages.
+  One opinion per (user_id, item_id) pair is retained (latest occurrence wins).
+  Title-based enrichment is a best-effort fuzzy-normalized join on Title (lowercased/stripped).
+  If an item's text is empty after enrichment, item_id is used as a deterministic fallback.
+
+Libraries and rationale:
+  pandas: ETL, CSV I/O, grouping, joins. Chosen for readability and course alignment.
+    Alternative: polars (faster; different API; not essential for this pipeline scale).
+  pathlib: Cross-platform path handling. Alternative: os.path (less ergonomic).
+  argparse/json: Standard library for CLIs and structured reports. Alternatives: click/typer (extra deps).
+
+
+Limitations and alternatives:
+  Title matching may collide for homonymous titles; a stronger key (e.g., ASIN) would be safer when available.
+  Categories are treated as raw text; structured parsing (lists/tokens) could improve CBF quality.
+  Thresholds for CF subset are static; adaptive thresholds per dataset could be added if needed.
 """
 
 import argparse
@@ -46,6 +59,10 @@ def pick(colnames, candidates):
 
     Returns:
       str | None: The matched column name from `colnames`, or None if none match.
+
+    Notes:
+      - Alias lists are ordered by preference; the first hit is used.
+      - Case-insensitive lookup allows robust mapping across heterogeneous schemas.
     """
     s = {c.lower(): c for c in colnames}
     for c in candidates:
@@ -59,9 +76,10 @@ def main():
     Creates three CSVs and a JSON report under --outdir. Filters a CF-ready
     subset based on --min_user and --min_item thresholds.
 
-    Raises:
-      FileNotFoundError: If input CSVs are missing.
-      ValueError: If required columns cannot be inferred.
+Design:
+      - Ratings cleaning enforces numeric ratings in [1,5], strips IDs, and deduplicates pairs.
+      - Items catalog is derived from observed ratings to ensure closed-world consistency.
+      - Metadata enrichment via Title is optional and best-effort.
     """
     ap = argparse.ArgumentParser()
     ap.add_argument("--ratings", default="data/raw/books_rating_cleaned.raw.csv",
@@ -95,9 +113,9 @@ def main():
     r.columns = ["user_id","item_id","rating"] + (["title"] if title_r else [])
 
     # Clean ratings table
-    # - Coerce rating to numeric and clamp to [1, 5]
-    # - Drop rows with missing IDs or rating
-    # - Normalize IDs/titles and deduplicate user-item pairs
+    # Coerce rating to numeric and clamp to [1, 5]
+    # Drop rows with missing IDs or rating
+    # Normalize IDs/titles and deduplicate user-item pairs
     r["rating"] = pd.to_numeric(r["rating"], errors="coerce").clip(1, 5)
     r = r.dropna(subset=["user_id", "item_id", "rating"])
     r["user_id"] = r["user_id"].astype(str).str.strip()
@@ -124,6 +142,7 @@ def main():
         mm["meta_title"] = mm["meta_title"].astype(str).str.strip()
         if "categories" in mm.columns:
             mm["categories"] = mm["categories"].astype(str).str.strip()
+        # Normalize titles for a case-insensitive, whitespace-tolerant join
         items["t_norm"] = items["title"].astype(str).str.lower().str.strip()
         mm["t_norm"]    = mm["meta_title"].astype(str).str.lower().str.strip()
         items = items.merge(mm.drop(columns=["meta_title"]), on="t_norm", how="left")
@@ -141,7 +160,7 @@ def main():
     else:
         items["text"] = ""
 
-    # Guarantee non-empty text; fallback to item_id
+    # Guarantee non-empty text; fallback to item_id, this ensures CBF never sees empty strings
     items["text"] = items["text"].fillna("").astype(str).str.strip()
     empty = items["text"].str.len() == 0
     if empty.any():

@@ -1,30 +1,25 @@
 # split.py
 """Split cleaned ratings into train/val/test by user using random or temporal strategy.
 
-This module expects a ratings CSV with columns: user_id, item_id, rating, and
-optionally a timestamp column for temporal splitting. It produces three CSV
-files (train.csv, val.csv, test.csv) and a split_stats.json summary.
+This module expects a ratings CSV with columns: user_id, item_id, rating. 
+It produces three CSV files (train.csv, val.csv, test.csv) and a split_stats.json summary.
 
 Strategies:
   - random: per user, select one test row and optionally one validation row,
             preferring items that keep catalog coverage intact using a heuristic.
-  - temporal: per user, last interaction → test, second-to-last → val (if present),
+  - temporal: per user, last interaction → test, second-to-last → val,
               remaining → train.
 
-Inputs (CLI):
-  --ratings             Path to cleaned ratings CSV with user_id,item_id,rating
-  --outdir              Output directory (default: data)
-  --seed                RNG seed for random strategy (default: 42)
-  --min_train_inter     Drop users with fewer train rows than this (default: 1)
-  --min_item_support    Prefer val/test picks on items with at least this many total interactions (default: 2)
-  --strategy            'random' or 'temporal' (default: random)
-  --time_col            Explicit timestamp column for temporal strategy (optional)
+Assumptions and invariants:
+  Ratings are clamped to [1,5] upstream and each (user_id,item_id) pair is unique.
+  Random split uses a deterministic seed for reproducibility.
 
-Outputs (under --outdir):
+Outputs:
   - train.csv
   - val.csv
   - test.csv
   - split_stats.json
+
 """
 
 import argparse, json
@@ -36,14 +31,10 @@ import numpy as np
 TIME_CANDIDATES = ["timestamp","time","unixReviewTime","reviewTime","date"]
 
 def pick(colnames, candidates):
-    """Return the first matching column from `colnames` using alias `candidates` (case-insensitive).
-
-    Args:
-      colnames (Iterable[str]): Available column names.
-      candidates (Iterable[str]): Ordered list of candidate aliases.
-
-    Returns:
-      str | None: The chosen column name from `colnames`, preserving original case, or None.
+    """Return the first matching column from `colnames` using alias `candidates`.
+        Notes:
+      - Alias order encodes preference.
+      - Case-insensitive mapping tolerates heterogeneous upstream schemas.
     """
     s = {c.lower(): c for c in colnames}
     for c in candidates:
@@ -59,17 +50,6 @@ def pick_idx_prefer_supported(dfu, rng, global_cnt, remaining_support, min_suppo
       2) Items with total count >= min_support.
       3) Items with remaining_support > 1.
       4) Any remaining candidate.
-
-    Args:
-      dfu (pd.DataFrame): User-specific interactions.
-      rng (np.random.Generator): Random generator for selection.
-      global_cnt (dict[str,int]): item_id → total interaction count in the full dataset.
-      remaining_support (dict[str,int]): item_id → remaining allowable draws before coverage risk.
-      min_support (int): Threshold for considering an item as sufficiently supported.
-      forbid (Iterable[int] | None): Indices to exclude from consideration.
-
-    Returns:
-      int | None: Chosen row index from dfu, or None if no candidates exist.
     """
     forbid = set() if forbid is None else set(forbid)
     candidates = [i for i in dfu.index if i not in forbid]
@@ -103,17 +83,6 @@ def split_user_random(dfu, rng, global_cnt, remaining_support, min_support):
       - Always pick one test row.
       - If the user has ≥3 rows, also pick one validation row.
       - Remaining rows become train.
-
-    Args:
-      dfu (pd.DataFrame): All rows for one user.
-      rng (np.random.Generator): Random generator.
-      global_cnt (dict[str,int]): item_id → total interaction count dataset-wide.
-      remaining_support (dict[str,int]): Mutable item_id → remaining support tracker.
-      min_support (int): Minimum total interactions threshold to prefer for val/test.
-
-    Returns:
-      tuple[pd.DataFrame, pd.DataFrame | None, pd.DataFrame]:
-        (train, val or None, test)
     """
     n = len(dfu)
     if n == 1:
@@ -140,15 +109,8 @@ def split_user_random(dfu, rng, global_cnt, remaining_support, min_support):
     return train, val, test
 
 def split_user_temporal(dfu, time_col):
-    """Split a single user's interactions chronologically: last→test, second-last→val.
-
-    Args:
-      dfu (pd.DataFrame): All rows for one user.
-      time_col (str): Name of the timestamp column.
-
-    Returns:
-      tuple[pd.DataFrame, pd.DataFrame | None, pd.DataFrame]:
-        (train, val or None, test)
+    """
+    Split a single user's interactions chronologically: last→test, second-last→val.
     """
     dfu = dfu.sort_values(time_col)
     n = len(dfu)
@@ -167,8 +129,7 @@ def main():
     strategy per user, enforces a minimum train interaction threshold, and
     writes train/val/test CSVs plus a JSON stats report.
 
-    Raises:
-      ValueError: If required columns are missing or temporal split lacks a timestamp column.
+
     """
     ap = argparse.ArgumentParser()
     ap.add_argument("--ratings", required=True, help="cleaned ratings CSV with user_id,item_id,rating")

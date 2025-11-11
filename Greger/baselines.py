@@ -31,6 +31,16 @@ Notes:
   - Input CSVs are lightly cleaned (strip ids, coerce rating to [1,5], dedup).
   - Popularity recommender avoids already-seen items per user.
   - Progress logs print every N users per strategy.
+
+Why these libraries
+  pandas: robust tabular IO and groupby ops used to compute popularity and clean splits.
+    Alternatives: polars (faster on large data) was not chosen to minimize dependencies and
+    keep parity with scikit-learn/pandas ecosystem.
+  numpy: vectorized math and RNG for the random baseline; ubiquitous and stable.
+    Alternatives: Python’s random module lacks vectorized sampling and is slower at scale.
+  math: stable log2 for DCG; avoids bringing heavier deps.
+  pathlib/json/argparse: stdlib for paths, structured reports, and CLI; no runtime cost.
+
 """
 
 import argparse, json, math, sys
@@ -39,24 +49,12 @@ import numpy as np
 import pandas as pd
 
 def log(msg): 
-    """Flush-logged stdout message.
-
-    Args:
-      msg (str): Message to print immediately.
-    """
     print(msg, flush=True)
 
 # metrics
 def ndcg_at_k(rec_items, rel_set, k):
-    """Compute nDCG@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked item_ids recommended to the user.
-      rel_set (set[str]): Relevant item_ids for the user.
-      k (int): Cutoff.
-
-    Returns:
-      float: Normalized DCG at k in [0,1]. 0 if k==0 or no relevant items.
+    """
+    Compute nDCG@k for a single user.
     """
     if k == 0: return 0.0
     dcg = 0.0
@@ -68,43 +66,22 @@ def ndcg_at_k(rec_items, rel_set, k):
     return dcg / idcg
 
 def precision_at_k(rec_items, rel_set, k):
-    """Compute precision@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked item_ids recommended to the user.
-      rel_set (set[str]): Relevant item_ids for the user.
-      k (int): Cutoff.
-
-    Returns:
-      float: Precision at k in [0,1]. 0 if k==0.
+    """
+    Compute precision@k for a single user.
     """
     if k == 0: return 0.0
     return sum(i in rel_set for i in rec_items[:k]) / k
 
 def recall_at_k(rec_items, rel_set, k):
-    """Compute recall@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked item_ids recommended to the user.
-      rel_set (set[str]): Relevant item_ids for the user.
-      k (int): Cutoff.
-
-    Returns:
-      float: Recall at k in [0,1], or NaN if rel_set is empty.
+    """
+    Compute recall@k for a single user.
     """
     if not rel_set: return np.nan
     return sum(i in rel_set for i in rec_items[:k]) / len(rel_set)
 
 def hitrate_at_k(rec_items, rel_set, k):
-    """Compute hit-rate@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked item_ids recommended to the user.
-      rel_set (set[str]): Relevant item_ids for the user.
-      k (int): Cutoff.
-
-    Returns:
-      float: 1.0 if any hit within top-k, else 0.0.
+    """
+    Compute hit-rate@k for a single user.
     """
     return 1.0 if any(i in rel_set for i in rec_items[:k]) else 0.0
 
@@ -116,8 +93,6 @@ def eval_topk(recs_df, eval_df, k):
       eval_df (pd.DataFrame): Columns [user_id, item_id, rating] filtered to relevant rows.
       k (int): Cutoff.
 
-    Returns:
-      dict: users_evaluated and mean precision/recall/ndcg/hit_rate at k.
     """
     rel_per_user = eval_df.groupby("user_id")["item_id"].apply(set)
     recs_k = recs_df[recs_df["rank"] <= k]
@@ -146,8 +121,6 @@ def build_seen(train_df):
     Args:
       train_df (pd.DataFrame): Must contain columns user_id and item_id.
 
-    Returns:
-      dict[str, set[str]]: user_id → set of item_ids seen in training.
     """
     return {str(u): set(g["item_id"].astype(str).str.strip()) for u, g in train_df.groupby("user_id")}
 
@@ -166,9 +139,6 @@ def topk_popularity_stream(train_df, users, seen, K, out_csv, scan_limit=None, p
       scan_limit (int | None): If set, cap the popularity list scan to first N items.
       progress_every (int): Log progress every N users.
 
-    Returns:
-      tuple[pd.DataFrame, pd.Series]:
-        (recommendations dataframe, item popularity counts)
     """
     pop = train_df.groupby("item_id").size().sort_values(ascending=False)
     pop_items = pop.index.astype(str).str.strip().tolist()
@@ -199,9 +169,6 @@ def topk_random(users, all_items_set, seen, K, out_csv, seed=42, progress_every=
       out_csv (Path | str): Where to write the recommendations CSV.
       seed (int): RNG seed.
       progress_every (int): Log progress every N users.
-
-    Returns:
-      pd.DataFrame: Recommendations with columns [user_id, item_id, rank, score, source].
     """
     rng = np.random.default_rng(seed)
     rows = []
@@ -225,8 +192,6 @@ def rating_baselines(train_df, eval_df):
       train_df (pd.DataFrame): Training interactions with user_id, item_id, rating.
       eval_df (dict[str,pd.DataFrame]): Mapping split name → dataframe with same columns.
 
-    Returns:
-      dict[str, dict[str, float]]: Per split, RMSE/MAE for global, user, and item means.
     """
     gmean = train_df["rating"].mean()
     umean = train_df.groupby("user_id")["rating"].mean()
@@ -254,12 +219,12 @@ if __name__ == "__main__":
     ap.add_argument("--val",   required=True)
     ap.add_argument("--test",  required=True)
     ap.add_argument("--items", default="")
-    ap.add_argument("--k",     default="10")                 # e.g. "5,10"
+    ap.add_argument("--k",     default="10")                 
     ap.add_argument("--threshold", type=float, default=4.0)
     ap.add_argument("--outdir", default="results")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--pop_scan_limit", type=int, default=20000)   # cap scanned head of popularity
-    ap.add_argument("--limit_users_val",  type=int, default=None)  # quick smoke
+    ap.add_argument("--limit_users_val",  type=int, default=None)  
     ap.add_argument("--limit_users_test", type=int, default=None)
     args = ap.parse_args()
 

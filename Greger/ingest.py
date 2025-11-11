@@ -1,31 +1,27 @@
 # ingest.py
 """Ingest raw ratings and items CSVs into a project data directory and emit a schema report.
 
-This module copies two source CSV files into an output directory as unchanged
-snapshots and produces a lightweight JSON schema report. The report captures
-file paths, shapes, and column names to anchor downstream preprocessing.
+Summary
+Copies two source CSVs into an output directory as byte-identical snapshots.
+Emits a lightweight JSON schema report (paths, shapes, column names) to file and stdout.
+Establishes provenance and a stable starting point for downstream steps (prepare/split/model).
 
-Inputs:
-  - Command-line flags:
-      --ratings: Path to the raw ratings CSV.
-      --items:   Path to the raw items CSV.
-      --outdir:  Output directory for artifacts (default: data/raw).
+Outputs (written under --outdir)
+  books_rating_cleaned.raw.csv  Unmodified copy of the ratings source.
+  books_data.raw.csv            Unmodified copy of the items source.
+  ingest_report.json            Summary of shapes, columns, and soft column hints.
 
-Outputs (written under --outdir):
-  - books_rating_cleaned.raw.csv  Unmodified copy of the ratings source.
-  - books_data.raw.csv            Unmodified copy of the items source.
-  - ingest_report.json            Summary of shapes, columns, and soft column hints.
-  - The same JSON report is also printed to stdout.
+Assumptions and invariants
+Files are readable CSVs; delimiter and encoding are handled by pandas defaults or pandas’ auto-detection.
+No schema enforcement here; downstream code will map/validate columns.
+Snapshots are written unchanged; this module does not transform data.
 
-Side effects:
-  - Creates the output directory if it does not exist.
+Libraries and rationale
+pandas: Robust CSV I/O and dtype handling for large files (used here as a dependable reader/writer).
+  Alternative: polars (faster on large data, different API; not necessary for a single pass copy and report).
+pathlib: Cross-platform, explicit filesystem paths. Alternative: os.path (works, but less ergonomic).
+argparse/json: Standard library CLIs and structured reports. Alternatives: click/typer 
 
-Dependencies:
-  - pandas for CSV I/O.
-  - pathlib for filesystem paths.
-
-Example:
-  python ingest.py --ratings path/to/ratings.csv --items path/to/items.csv --outdir data/raw
 """
 
 import argparse, json
@@ -33,10 +29,8 @@ from pathlib import Path
 import pandas as pd
 
 def main():
-    """Parse CLI args, copy raw CSVs to outdir, and write a schema report.
-
-    Raises:
-      FileNotFoundError: If the provided --ratings or --items path does not exist.
+    """
+    Parse CLI args, copy raw CSVs to outdir, and write a schema report.
     """
     ap = argparse.ArgumentParser(description="Copy the raw data files into the project data/raw directory.")
     ap.add_argument("--ratings", required=True, help="Path to the raw ratings CSV")
@@ -59,13 +53,13 @@ def main():
     r = pd.read_csv(ratings_path, low_memory=False)
     m = pd.read_csv(items_path, low_memory=False)
 
-    # Save unchanged snapshots
+    # Save unchanged snapshots (provenance: byte-for-byte content preserved by rewriting rows unchanged).
     r.to_csv(outdir / "books_rating_cleaned.raw.csv", index=False)
     m.to_csv(outdir / "books_data.raw.csv", index=False)
 
-    # Write a schema report
+    # Write a schema report.
     # 'column_hints' are soft expectations intended to help manual inspection
-    # and downstream mapping; they are not enforced.
+    # and downstream mapping; they are not enforced here.
     report = {
         "ratings_path": str(ratings_path.resolve()),
         "items_path": str(items_path.resolve()),

@@ -1,4 +1,44 @@
-"""Greger/eda.py — quick exploratory analysis for the standardized data."""
+"""Greger/eda.py — quick exploratory analysis for the standardized data.
+
+Purpose
+  Fast, deterministic EDA over standardized ratings (data
+  preparation quality), CBF text coverage via items merge and
+  evaluation design, e.g., sparsity and head–tail imbalance.
+
+Inputs/Outputs
+  Inputs:
+    - --ratings: CSV with columns {user_id, item_id, rating}.
+    - --items:   items CSV with {item_id, Title/title, Categories/categories, text}.
+  Outputs:
+    - <outdir>/eda_stats.json          Dataset summary for reports and sanity checks.
+
+
+Assumptions
+  Ratings are on a 1–5 scale. Cleaning coerces and clamps ratings to [1, 5].
+  One row per user–item opinion after upstream de-duplication is expected.
+  Items CSV is best-effort metadata; EDA tolerates its absence.
+
+What we measure and why
+  n_users, n_items, n_interactions: dataset size and shape.
+  density = |R| / (|U|·|I|): sparsity level, key for CF/CBF feasibility.
+  rating_summary, rating_shares: label distribution; informs threshold=4.0 choice.
+  users_with_single_rating_pct, items_with_single_rating_pct: coldness indicators.
+  top20pct_popularity_share: head concentration; affects popularity baselines and novelty.
+
+Libraries and rationale
+  pandas: mature CSV/series ops. Alternative: polars (faster) but adds friction for course baselines.
+  numpy: basic numerics and array ops; lightweight and ubiquitous.
+  matplotlib: direct control for static PNGs; stable in headless mode with Agg.
+    Alternatives: seaborn/plotnine (higher-level styling) not required for minimal, reproducible plots.
+  pathlib/json/argparse: stdlib for paths, reports, and CLI; no extra deps.
+
+Design choices
+  Headless-safe backend (Agg) ensures CI/servers can render plots without a GUI.
+  Log–log histograms with log-spaced bins reveal long-tail patterns in activity/popularity.
+  No random state used; EDA outputs are deterministic for a given input.
+
+"""
+
 import argparse
 import json
 from pathlib import Path
@@ -16,14 +56,6 @@ def load_ratings(path: Path) -> pd.DataFrame:
     Ensures presence of columns {user_id, item_id, rating}, coerces rating to
     numeric in [1, 5], strips identifiers, and drops invalid rows.
 
-    Args:
-      path: Path to a CSV file with columns user_id, item_id, rating.
-
-    Returns:
-      A cleaned pandas DataFrame with columns user_id, item_id, rating.
-
-    Raises:
-      ValueError: If required columns are missing or all rows become invalid.
     """
     df = pd.read_csv(path, low_memory=False)
     required = {"user_id", "item_id", "rating"}
@@ -45,12 +77,6 @@ def attach_titles(ratings: pd.DataFrame, items_path: Path) -> pd.DataFrame:
     Joins on item_id using an items CSV and carries over common metadata fields
     such as Title/title, Categories/categories, and text.
 
-    Args:
-      ratings: Cleaned ratings DataFrame with column item_id.
-      items_path: Path to items CSV. If missing or malformed, ratings are returned unchanged.
-
-    Returns:
-      Ratings DataFrame with additional metadata columns when present.
     """
     if not items_path.exists():
         return ratings
@@ -70,12 +96,7 @@ def attach_titles(ratings: pd.DataFrame, items_path: Path) -> pd.DataFrame:
 def hist(ax, series, bins, title, xlabel):
     """Plot a linear-scale histogram on the provided axes.
 
-    Args:
-      ax: Matplotlib Axes to draw on.
-      series: 1D array-like of numeric values.
-      bins: Number of bins or bin edges.
-      title: Plot title.
-      xlabel: X-axis label.
+
     """
     ax.hist(series, bins=bins)
     ax.set_title(title)
@@ -86,12 +107,6 @@ def hist(ax, series, bins, title, xlabel):
 def log_hist(ax, series, bins, title, xlabel):
     """Plot a histogram with log-scaled axes.
 
-    Args:
-      ax: Matplotlib Axes to draw on.
-      series: 1D array-like of numeric values.
-      bins: Number of bins or bin edges (use log-spaced for readability).
-      title: Plot title.
-      xlabel: X-axis label.
     """
     ax.hist(series, bins=bins)
     ax.set_xscale("log")
@@ -115,8 +130,6 @@ def main() -> None:
       - Optional PNGs: ratings_hist, user_activity_hist, item_popularity_hist,
         user_activity_loglog, item_popularity_loglog.
 
-    Raises:
-      ValueError: If ratings are missing required columns or contain no valid rows after cleaning.
     """
     ap = argparse.ArgumentParser(description="Generate quick EDA summaries for standardized ratings data.")
     ap.add_argument("--ratings", default="data/trainable_ratings.csv")
@@ -195,7 +208,7 @@ def main() -> None:
         if len(user_activity):
             fig, ax = plt.subplots()
             max_user = max(1, user_activity.max())
-            bins_u = np.logspace(0, np.log10(max_user), 50)  # log-spaced bins for readability
+            bins_u = np.logspace(0, np.log10(max_user), 50)  # log-spaced bins reveal head–tail spread
             log_hist(ax, user_activity, bins=bins_u, title="User activity (log-log)", xlabel="#ratings per user")
             fig.tight_layout()
             fig.savefig(plots_dir / "user_activity_loglog.png")
@@ -204,7 +217,7 @@ def main() -> None:
         if len(item_pop):
             fig, ax = plt.subplots()
             max_item = max(1, item_pop.max())
-            bins_i = np.logspace(0, np.log10(max_item), 50)  # log-spaced bins for readability
+            bins_i = np.logspace(0, np.log10(max_item), 50)  # log-spaced bins reveal head–tail spread
             log_hist(ax, item_pop, bins=bins_i, title="Item popularity (log-log)", xlabel="#ratings per item")
             fig.tight_layout()
             fig.savefig(plots_dir / "item_popularity_loglog.png")

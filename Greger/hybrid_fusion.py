@@ -4,7 +4,6 @@
 Combines multiple recommendation sources by per-user z-normalized scores:
   - CF scores (e.g., item-kNN).
   - CBF scores (e.g., TF-IDF cosine).
-  - Optional popularity prior from training interactions.
 
 Workflow:
   1) Load CF and CBF recommendation files for val/test.
@@ -14,9 +13,8 @@ Workflow:
   5) Rank per user, save fused recs, and report Top-K metrics.
 
 Inputs (CSV expectations):
-  - Recs: columns [user_id, item_id, score] and/or [rank] (rank is a fallback).
+  - Recs: columns [user_id, item_id, score] and/or [rank].
   - Splits: ratings with [user_id, item_id, rating] for relevance ≥ threshold.
-  - Train (optional): ratings for computing item popularity.
 
 Outputs:
   - <outdir>/val_recs_hybrid.csv, <outdir>/test_recs_hybrid.csv
@@ -30,15 +28,8 @@ import pandas as pd
 
 #  metrics 
 def ndcg_at_k(rec_items, rel_set, k):
-    """Compute nDCG@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked recommended item_ids.
-      rel_set (set[str]): Relevant item_ids.
-      k (int): Cutoff.
-
-    Returns:
-      float: nDCG@k in [0,1]. 0 if k==0 or no relevant items.
+    """
+    Compute nDCG@k for a single user.
     """
     if k == 0: return 0.0
     dcg = 0.0
@@ -50,56 +41,28 @@ def ndcg_at_k(rec_items, rel_set, k):
     return dcg / idcg
 
 def precision_at_k(rec_items, rel_set, k):
-    """Compute precision@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked recommended item_ids.
-      rel_set (set[str]): Relevant item_ids.
-      k (int): Cutoff.
-
-    Returns:
-      float: Precision@k in [0,1]. 0 if k==0.
+    """
+    Compute precision@k for a single user.
     """
     if k == 0: return 0.0
     return sum(i in rel_set for i in rec_items[:k]) / k
 
 def recall_at_k(rec_items, rel_set, k):
-    """Compute recall@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked recommended item_ids.
-      rel_set (set[str]): Relevant item_ids.
-      k (int): Cutoff.
-
-    Returns:
-      float: Recall@k in [0,1], or NaN if rel_set is empty.
+    """
+    Compute recall@k for a single user.
     """
     if not rel_set: return np.nan
     return sum(i in rel_set for i in rec_items[:k]) / len(rel_set)
 
 def hitrate_at_k(rec_items, rel_set, k):
-    """Compute hit-rate@k for a single user.
-
-    Args:
-      rec_items (Sequence[str]): Ranked recommended item_ids.
-      rel_set (set[str]): Relevant item_ids.
-      k (int): Cutoff.
-
-    Returns:
-      float: 1.0 if any relevant item appears in top-k, else 0.0.
+    """
+    Compute hit-rate@k for a single user.
     """
     return 1.0 if any(i in rel_set for i in rec_items[:k]) else 0.0
 
 def eval_topk(recs_df, eval_df, k):
-    """Aggregate Top-K metrics across users.
-
-    Args:
-      recs_df (pd.DataFrame): Columns [user_id,item_id,rank] (lower rank is better).
-      eval_df (pd.DataFrame): Relevant rows [user_id,item_id,rating].
-      k (int): Cutoff.
-
-    Returns:
-      dict: users_evaluated and mean precision/recall/ndcg/hit_rate at K.
+    """
+    Aggregate Top-K metrics across users.
     """
     rel_per_user = eval_df.groupby("user_id")["item_id"].apply(set)
     recs_k = recs_df[recs_df["rank"] <= k]
@@ -128,13 +91,6 @@ def load_recs(path, src_name):
     Keeps [user_id,item_id,score,rank] if present. If score is missing,
     uses negative rank as a proxy score. Renames the score column to
     '{src_name}_score' to preserve source identity.
-
-    Args:
-      path (str|Path): CSV path.
-      src_name (str): Source tag, e.g., 'cf' or 'cbf'.
-
-    Returns:
-      pd.DataFrame: Standardized frame with '{src_name}_score'.
     """
     df = pd.read_csv(path)
     # keep only needed cols
@@ -153,14 +109,6 @@ def add_user_z(df, score_col, out_col):
     """Add per-user z-normalized scores based on an input score column.
 
     z = (score - mean_user) / std_user, with std fallback to 1.0 for zero variance.
-
-    Args:
-      df (pd.DataFrame): Must have 'user_id' and score_col.
-      score_col (str): Input score column name.
-      out_col (str): Output z-score column name.
-
-    Returns:
-      pd.DataFrame: Same frame with an added out_col.
     """
     if len(df) == 0:
         df[out_col] = []
@@ -176,13 +124,6 @@ def build_eval(df_path, thr):
 
     Cleans IDs, coerces rating to [1,5], deduplicates, and filters rows with
     rating ≥ thr.
-
-    Args:
-      df_path (str|Path): Split CSV path.
-      thr (float): Relevance threshold.
-
-    Returns:
-      pd.DataFrame: Columns [user_id,item_id,rating] for relevant rows.
     """
     df = pd.read_csv(df_path)
     df = df.dropna(subset=["user_id","item_id"]).copy()
@@ -198,12 +139,6 @@ def item_pop_from_train(train_path):
 
     Popularity = count(item_id) over train.
     Transform: log1p(count) then global z-normalization.
-
-    Args:
-      train_path (str|Path): Train CSV path.
-
-    Returns:
-      pd.Series: z-normalized popularity indexed by item_id (float).
     """
     tr = pd.read_csv(train_path)
     tr = tr.dropna(subset=["item_id"]).copy()
@@ -215,28 +150,15 @@ def item_pop_from_train(train_path):
     return z  # pd.Series indexed by item_id
 
 def fuse_one_split(cf_path, cbf_path, eval_gt, K, w_cf, w_cbf, w_pop, pop_z=None, limit_users=None, out_csv=None):
-    """Fuse CF and CBF scores with optional popularity into Top-K recs for one split.
+    """Fuse CF and CBF scores with popularity into Top-K recs for one split.
 
     Steps:
       1) Load CF/CBF recs and compute per-user z-scores.
       2) Outer-join to union items per user, fill missing z's with 0.
-      3) Add popularity prior if provided and weighted.
+      3) Add popularity.
       4) Compute hybrid_score = w_cf*cf_z + w_cbf*cbf_z + w_pop*pop_z.
-      5) Keep only users present in eval set, optionally limit user count.
+      5) Keep only users present in eval set.
       6) Rank by hybrid_score per user and evaluate Top-K.
-
-    Args:
-      cf_path (str|Path): CF recommendations CSV.
-      cbf_path (str|Path): CBF recommendations CSV.
-      eval_gt (pd.DataFrame): Ground-truth relevant rows [user_id,item_id,rating].
-      K (int): Top-K cutoff.
-      w_cf, w_cbf, w_pop (float): Fusion weights.
-      pop_z (pd.Series|None): Popularity z-scores indexed by item_id.
-      limit_users (int|None): Optional cap on number of users to score.
-      out_csv (str|Path|None): Optional path to save fused recs.
-
-    Returns:
-      tuple[pd.DataFrame, dict]: (recs DataFrame, Top-K metrics dict).
     """
     cf  = load_recs(cf_path,  "cf")
     cbf = load_recs(cbf_path, "cbf")
@@ -310,6 +232,18 @@ if __name__ == "__main__":
     if args.w_cf == 0 and args.w_cbf == 0 and args.w_pop == 0:
         raise ValueError("all weights are zero")
 
+    # Popularity.
+    # Builds a z-scored popularity Series (item_id -> pop_z) from the train split
+    # only when a nonzero w_pop is requested. If the train file is missing, we
+    # deterministically disable the popularity term to avoid NameError or
+    # inconsistent behavior.
+    pop_z = None
+    if args.w_pop != 0.0:
+        if args.train and Path(args.train).exists():
+            pop_z = item_pop_from_train(args.train)
+        else:
+            print("[hybrid_fusion] popularity weight requested but no train data found; forcing w_pop=0", flush=True)
+            args.w_pop = 0.0
 
     # Build evaluation ground truth at threshold.
     val_gt  = build_eval(args.val,  args.threshold)
