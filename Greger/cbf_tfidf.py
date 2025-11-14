@@ -227,7 +227,6 @@ def main():
         if empty.any():
             items.loc[empty, tcol] = items.loc[empty, "item_id"]
 
-    # for duplicates, keep the row with the longest text representation
     items = (items
              .assign(_text_len=items[tcol].str.len())
              .sort_values(["item_id", "_text_len"], ascending=[True, False])
@@ -278,9 +277,8 @@ def main():
     coverage_stats(test, "test")
 
     def recommend_for_users(eval_df, split_name):
-        """Produce top-K recommendations for users in a split.
-
-        Users must have at least one liked item in train to form a profile.
+        """
+        Produce top-K recommendations for users in a split.
         """
         users = eval_df["user_id"].astype(str).unique().tolist()
         if split_name == "val"  and args.limit_users_val:  users = users[:args.limit_users_val]

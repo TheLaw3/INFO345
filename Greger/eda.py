@@ -131,9 +131,8 @@ def attach_titles(ratings: pd.DataFrame, items_path: Path) -> pd.DataFrame:
 
 
 def hist(ax, series, bins, title, xlabel):
-    """Plot a linear-scale histogram on the provided axes.
-
-
+    """
+    Plot a linear-scale histogram on the provided axes.
     """
     ax.hist(series, bins=bins)
     ax.set_title(title)
@@ -142,8 +141,8 @@ def hist(ax, series, bins, title, xlabel):
 
 
 def log_hist(ax, series, bins, title, xlabel):
-    """Plot a histogram with log-scaled axes.
-
+    """
+    Plot a histogram with log-scaled axes.
     """
     ax.hist(series, bins=bins)
     ax.set_xscale("log")
@@ -154,7 +153,8 @@ def log_hist(ax, series, bins, title, xlabel):
 
 
 def main() -> None:
-    """Generate summary stats and optional histograms for standardized ratings.
+    """
+    Generate summary stats and histograms for standardized ratings.
 
     CLI:
       --ratings     Path to trainable_ratings.csv (default: data/trainable_ratings.csv)
@@ -164,7 +164,7 @@ def main() -> None:
 
     Outputs:
       - <outdir>/eda_stats.json with core dataset statistics.
-      - Optional PNGs: ratings_hist, user_activity_hist, item_popularity_hist,
+      - PNGs: ratings_hist, user_activity_hist, item_popularity_hist,
         user_activity_loglog, item_popularity_loglog.
 
     """

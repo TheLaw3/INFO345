@@ -154,26 +154,17 @@ def eval_topk(recs_df, eval_df, k):
 
 #  CF model (item-kNN with cosine) 
 class ItemKNN:
-    """Item-based kNN recommender using cosine similarity.
+    """
+    Item-based kNN recommender using cosine similarity.
 
     Fits a kNN index over item vectors derived from the user-item rating matrix
     (items as rows, users as columns). Precomputes per-item neighborhoods to
     accelerate recommendation.
-
-    Attributes:
-      n_neighbors (int): Target neighbors per item (effective may be smaller).
-      metric (str): Distance metric for NearestNeighbors.
-      model (NearestNeighbors): Fitted scikit-learn kNN model.
-      item_index (dict[str,int]): item_id → column index.
-      user_index (dict[str,int]): user_id → row index.
-      R (csr_matrix): User-item rating matrix (users x items).
-      neigh_ind (np.ndarray): Neighbor indices per item.
-      neigh_sim (np.ndarray): Neighbor cosine similarities per item.
-      _inv_item_index (dict[int,str]): Column index → item_id.
-      _seen (dict[str,set[str]]): Items seen per user in training.
     """
     def __init__(self, n_neighbors=200, metric="cosine"):
-        """Init the model with neighborhood size and metric."""
+        """
+        Init the model with neighborhood size and metric.
+        """
         self.n_neighbors = n_neighbors
         self.metric = metric
         self.model = NearestNeighbors(n_neighbors=n_neighbors+1, metric=metric, algorithm="brute")
@@ -186,7 +177,8 @@ class ItemKNN:
         self._seen = None
 
     def fit(self, train_df):
-        """Fit the item-kNN model on a cleaned training DataFrame.
+        """
+        Fit the item-kNN model on a cleaned training DataFrame.
 
         Steps:
           1) Deduplicate (user_id,item_id) pairs.
@@ -216,7 +208,7 @@ class ItemKNN:
         self._eff_neighbors = eff_neighbors
         self.model.set_params(n_neighbors=eff_neighbors + 1)
 
-        # item vectors = columns -> shape (n_items, n_users)
+        # item vectors = columns -) shape (n_items, n_users)
         X = self.R.T  # CSR items x users
         self.model.fit(X)
 
@@ -226,12 +218,13 @@ class ItemKNN:
         self.neigh_ind = indices
         self.neigh_sim = 1.0 - distances
 
-        # cache items seen by each user (string ids)
+        # cache items seen by each user 
         self._seen = {str(u): set(g["item_id"].astype(str).str.strip())
                       for u, g in train_df.groupby("user_id")}
 
     def recommend_for_users(self, eval_users, K=10, max_neigh=None):
-        """Recommend Top-K items for a list of users.
+        """
+        Recommend Top-K items for a list of users.
 
         For each user, score candidate items via a weighted sum of neighbor
         similarities over the user's rated items, skipping items already seen.
@@ -277,7 +270,8 @@ class ItemKNN:
         return pd.DataFrame(rows)
 
 def load_splits(train_path, val_path, test_path):
-    """Load and lightly clean ratings splits.
+    """
+    Load and lightly clean ratings splits.
 
     Cleaning:
       Cast IDs to str and strip whitespace.
@@ -382,9 +376,6 @@ if __name__ == "__main__":
     # evaluate Top-K
     res_val  = eval_topk(recs_val,  val_rel,  args.k_top)
     res_test = eval_topk(recs_test, test_rel, args.k_top)
-
-    # rating prediction baselines for reference (not primary for KNN ranking)
-    # you can compute a weighted score RMSE if needed, but Top-K is main.
 
     metrics = {
         "model": "item-kNN sklearn cosine",

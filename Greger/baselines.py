@@ -113,13 +113,8 @@ def hitrate_at_k(rec_items, rel_set, k):
     return 1.0 if any(i in rel_set for i in rec_items[:k]) else 0.0
 
 def eval_topk(recs_df, eval_df, k):
-    """Evaluate top-K recommendations against relevance on a user set.
-
-    Args:
-      recs_df (pd.DataFrame): Columns [user_id, item_id, rank] where lower rank is better.
-      eval_df (pd.DataFrame): Columns [user_id, item_id, rating] filtered to relevant rows.
-      k (int): Cutoff.
-
+    """
+    Evaluate top-K recommendations against relevance on a user set.
     """
     rel_per_user = eval_df.groupby("user_id")["item_id"].apply(set)
     recs_k = recs_df[recs_df["rank"] <= k]
@@ -143,29 +138,17 @@ def eval_topk(recs_df, eval_df, k):
 
 #  helpers 
 def build_seen(train_df):
-    """Build per-user sets of already-seen item_ids from the train split.
-
-    Args:
-      train_df (pd.DataFrame): Must contain columns user_id and item_id.
-
+    """
+    Build per-user sets of already-seen item_ids from the train split.
     """
     return {str(u): set(g["item_id"].astype(str).str.strip()) for u, g in train_df.groupby("user_id")}
 
 def topk_popularity_stream(train_df, users, seen, K, out_csv, scan_limit=None, progress_every=2000):
-    """Generate top-K popularity recommendations per user with head-scan cap.
+    """
+    Generate top-K popularity recommendations per user with head-scan cap.
 
     Popularity is computed globally on train_df item frequency. For each user,
     scan the popularity list and pick unseen items until K are found.
-
-    Args:
-      train_df (pd.DataFrame): Training interactions with item_id and rating.
-      users (Sequence[str]): Users to recommend for.
-      seen (dict[str,set[str]]): user_id → seen items in train.
-      K (int): Number of recommendations per user.
-      out_csv (Path | str): Where to write the recommendations CSV.
-      scan_limit (int | None): If set, cap the popularity list scan to first N items.
-      progress_every (int): Log progress every N users.
-
     """
     pop = train_df.groupby("item_id").size().sort_values(ascending=False)
     pop_items = pop.index.astype(str).str.strip().tolist()
@@ -186,16 +169,8 @@ def topk_popularity_stream(train_df, users, seen, K, out_csv, scan_limit=None, p
     return out, pop
 
 def topk_random(users, all_items_set, seen, K, out_csv, seed=42, progress_every=2000):
-    """Generate top-K random recommendations from unseen items per user.
-
-    Args:
-      users (Sequence[str]): Users to recommend for.
-      all_items_set (set[str]): Universe of candidate item_ids.
-      seen (dict[str,set[str]]): user_id → seen items in train.
-      K (int): Number of recommendations per user.
-      out_csv (Path | str): Where to write the recommendations CSV.
-      seed (int): RNG seed.
-      progress_every (int): Log progress every N users.
+    """
+    Generate top-K random recommendations from unseen items per user.
     """
     rng = np.random.default_rng(seed)
     rows = []
@@ -213,12 +188,8 @@ def topk_random(users, all_items_set, seen, K, out_csv, seed=42, progress_every=
     return out
 
 def rating_baselines(train_df, eval_df):
-    """Compute rating prediction baselines (global/user/item mean) on splits.
-
-    Args:
-      train_df (pd.DataFrame): Training interactions with user_id, item_id, rating.
-      eval_df (dict[str,pd.DataFrame]): Mapping split name → dataframe with same columns.
-
+    """
+    Compute rating prediction baselines (global/user/item mean) on splits.
     """
     gmean = train_df["rating"].mean()
     umean = train_df.groupby("user_id")["rating"].mean()

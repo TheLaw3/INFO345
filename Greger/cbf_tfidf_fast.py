@@ -46,8 +46,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import normalize
 
 def ndcg_at_k(rec_items, rel_set, k):
-    """Compute nDCG@k for a single user.
-
+    """
+    Compute nDCG@k for a single user.
     """
     if k == 0: return 0.0
     dcg = 0.0
@@ -193,8 +193,7 @@ def main():
     item_ids = items["item_id"].tolist()
     idx_by_item = {iid:i for i, iid in enumerate(item_ids)}
 
-    # Fit TF-IDF on item texts. Use stop_words=None if "none" is given.
-    # Default ngram=(1,1) reduces dimensionality and improves runtime; raise with --ngram_max for richer vocab.
+    # Fit TF-IDF on item texts.
     vec = TfidfVectorizer(min_df=args.min_df, max_features=args.max_features,
                           ngram_range=(1, args.ngram_max), stop_words=(None if args.stop_words=="none" else args.stop_words))
     X = vec.fit_transform(items[tcol].values)  # CSR [n_items, V]
@@ -204,7 +203,6 @@ def main():
     seen = {u: set(g["item_id"].astype(str).str.strip()) for u, g in train.groupby("user_id")}
 
     # Candidate pool: popularity head capped to cand_pool; fallback to full catalog.
-    # Purpose: bound per-user scoring cost while keeping high-utility items.
     pop = train.groupby("item_id").size().sort_values(ascending=False)
     cand_head = set(pop.index.astype(str)[:args.cand_pool]).intersection(idx_by_item.keys())
     if not cand_head:
@@ -227,7 +225,8 @@ def main():
     weights_by_u   = {u: g["w"].to_numpy()            for u, g in grp}
 
     def recommend_for_split(eval_df, split_name):
-        """Produce top-K recommendations for users present in a split.
+        """
+        Produce top-K recommendations for users present in a split.
 
         Users must exist in training 'seen' and have at least one liked item.
 
@@ -252,7 +251,6 @@ def main():
 
             # Cosine similarity to candidates equals dot(Xcand, prof.T) for L2-normalized vectors.
             scores = Xcand_all.dot(prof.T).toarray().ravel()  # Nc floats
-            # Mask already-seen items by setting score to -inf.
             seen_idx = [cand_pos[iid] for iid in seen[u] if iid in cand_pos]
             if seen_idx:
                 scores[seen_idx] = -np.inf

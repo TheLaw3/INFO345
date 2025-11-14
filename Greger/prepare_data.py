@@ -73,21 +73,11 @@ from pathlib import Path
 import pandas as pd
 
 def pick(colnames, candidates):
-    """Return the first matching column name from `colnames` given alias `candidates`.
+    """
+    Return the first matching column name from `colnames` given alias `candidates`.
 
     Matching is case-insensitive, but the return value preserves the original
     casing from `colnames`.
-
-    Args:
-      colnames (Iterable[str]): Available column names.
-      candidates (Iterable[str]): Ordered list of alias names to try.
-
-    Returns:
-      str | None: The matched column name from `colnames`, or None if none match.
-
-    Notes:
-      - Alias lists are ordered by preference; the first hit is used.
-      - Case-insensitive lookup allows robust mapping across heterogeneous schemas.
     """
     s = {c.lower(): c for c in colnames}
     for c in candidates:
@@ -96,15 +86,11 @@ def pick(colnames, candidates):
     return None
 
 def main():
-    """Standardize columns, clean ratings, assemble item catalog, and write artifacts.
+    """
+    Standardize columns, clean ratings, assemble item catalog, and write artifacts.
 
     Creates three CSVs and a JSON report under --outdir. Filters a CF-ready
     subset based on --min_user and --min_item thresholds.
-
-Design:
-      - Ratings cleaning enforces numeric ratings in [1,5], strips IDs, and deduplicates pairs.
-      - Items catalog is derived from observed ratings to ensure closed-world consistency.
-      - Metadata enrichment via Title is optional and best-effort.
     """
     ap = argparse.ArgumentParser()
     ap.add_argument("--ratings", default="data/raw/books_rating_cleaned.raw.csv",
@@ -203,7 +189,7 @@ Design:
     if "categories" in items.columns:
         items["Categories"] = items["categories"]
 
-    # Column ordering: keep "item_id","text" first, then optional Title/Categories, then the rest
+    # Column ordering: keep "item_id","text" first, 
     preferred_cols = ["item_id", "text"]
     for optional in ["Title", "Categories"]:
         if optional in items.columns:
@@ -226,7 +212,7 @@ Design:
     items.to_csv(items_path, index=False)
     r_cf.to_csv(cf_path, index=False)
 
-    # Emit a concise preprocessing report for traceability
+    # Emit a preprocessing report 
     report = {
         "rows_base": int(len(r)),
         "users_base": int(r["user_id"].nunique()),

@@ -41,14 +41,11 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-# Candidate names for a timestamp column, checked in order if --time_col is not provided.
 TIME_CANDIDATES = ["timestamp","time","unixReviewTime","reviewTime","date"]
 
 def pick(colnames, candidates):
-    """Return the first matching column from `colnames` using alias `candidates`.
-        Notes:
-      - Alias order encodes preference.
-      - Case-insensitive mapping tolerates heterogeneous upstream schemas.
+    """
+    Return the first matching column from `colnames` using alias `candidates`.
     """
     s = {c.lower(): c for c in colnames}
     for c in candidates:
@@ -57,13 +54,8 @@ def pick(colnames, candidates):
     return None
 
 def pick_idx_prefer_supported(dfu, rng, global_cnt, remaining_support, min_support, forbid=None):
-    """Pick a row index from a user's interactions, preferring items that preserve catalog coverage.
-
-    Heuristic tiers, in order:
-      1) Items with total count >= min_support AND remaining_support > 1.
-      2) Items with total count >= min_support.
-      3) Items with remaining_support > 1.
-      4) Any remaining candidate.
+    """
+    Pick a row index from a user's interactions, preferring items that preserve catalog coverage.
     """
     forbid = set() if forbid is None else set(forbid)
     candidates = [i for i in dfu.index if i not in forbid]
@@ -91,12 +83,8 @@ def pick_idx_prefer_supported(dfu, rng, global_cnt, remaining_support, min_suppo
     return rng.choice(candidates)
 
 def split_user_random(dfu, rng, global_cnt, remaining_support, min_support):
-    """Split a single user's interactions randomly into train/val/test with coverage-aware picks.
-
-    Selection:
-      - Always pick one test row.
-      - If the user has ≥3 rows, also pick one validation row.
-      - Remaining rows become train.
+    """
+    Split a single user's interactions randomly into train/val/test with coverage-aware picks.
     """
     n = len(dfu)
     if n == 1:
@@ -137,7 +125,8 @@ def split_user_temporal(dfu, time_col):
     return train, val, test
 
 def main():
-    """Entry point: load ratings, choose strategy, produce splits and stats.
+    """
+    Entry point: load ratings, choose strategy, produce splits and stats.
 
     Reads a cleaned ratings CSV, validates schema, applies the chosen split
     strategy per user, enforces a minimum train interaction threshold, and

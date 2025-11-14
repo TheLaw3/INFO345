@@ -126,11 +126,8 @@ def eval_topk(recs_df, eval_df, k):
 
 #  helpers 
 def load_recs(path, src_name):
-    """Load a recommendation CSV and standardize its score column.
-
-    Keeps [user_id,item_id,score,rank] if present. If score is missing,
-    uses negative rank as a proxy score. Renames the score column to
-    '{src_name}_score' to preserve source identity.
+    """
+    Load a recommendation CSV and standardize its score column.
     """
     df = pd.read_csv(path)
     # keep only needed cols
@@ -146,9 +143,8 @@ def load_recs(path, src_name):
     return df
 
 def add_user_z(df, score_col, out_col):
-    """Add per-user z-normalized scores based on an input score column.
-
-    z = (score - mean_user) / std_user, with std fallback to 1.0 for zero variance.
+    """
+    Add per-user z-normalized scores based on an input score column.
     """
     if len(df) == 0:
         df[out_col] = []
@@ -160,7 +156,8 @@ def add_user_z(df, score_col, out_col):
     return df
 
 def build_eval(df_path, thr):
-    """Build ground-truth relevance from a ratings CSV.
+    """
+    Build ground-truth relevance from a ratings CSV.
 
     Cleans IDs, coerces rating to [1,5], deduplicates, and filters rows with
     rating ≥ thr.
@@ -175,10 +172,10 @@ def build_eval(df_path, thr):
     return df[df["rating"] >= thr][["user_id","item_id","rating"]]
 
 def item_pop_from_train(train_path):
-    """Compute a global popularity prior from the training split.
+    """
+    Compute a global popularity prior from the training split.
 
     Popularity = count(item_id) over train.
-    Transform: log1p(count) then global z-normalization.
     """
     tr = pd.read_csv(train_path)
     tr = tr.dropna(subset=["item_id"]).copy()
@@ -190,7 +187,8 @@ def item_pop_from_train(train_path):
     return z  # pd.Series indexed by item_id
 
 def fuse_one_split(cf_path, cbf_path, eval_gt, K, w_cf, w_cbf, w_pop, pop_z=None, limit_users=None, out_csv=None):
-    """Fuse CF and CBF scores with popularity into Top-K recs for one split.
+    """
+    Fuse CF and CBF scores with popularity into Top-K recs for one split.
 
     Steps:
       1) Load CF/CBF recs and compute per-user z-scores.
@@ -238,7 +236,7 @@ def fuse_one_split(cf_path, cbf_path, eval_gt, K, w_cf, w_cbf, w_pop, pop_z=None
 
 #  main 
 if __name__ == "__main__":
-    # CLI arguments for fusion and optional weight tuning.
+    # CLI arguments for fusion and weight tuning.
     ap = argparse.ArgumentParser()
     ap.add_argument("--cf_val",  required=True)
     ap.add_argument("--cf_test", required=True)

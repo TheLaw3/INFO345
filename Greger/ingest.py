@@ -67,9 +67,6 @@ def main():
     r.to_csv(outdir / "books_rating_cleaned.raw.csv", index=False)
     m.to_csv(outdir / "books_data.raw.csv", index=False)
 
-    # Write a schema report.
-    # 'column_hints' are soft expectations intended to help manual inspection
-    # and downstream mapping; they are not enforced here.
     report = {
         "ratings_path": str(ratings_path.resolve()),
         "items_path": str(items_path.resolve()),
