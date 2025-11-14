@@ -22,12 +22,6 @@ Outputs:
   ratings_cf_train.csv    CF-ready subset filtered by min_user/min_item.
   preprocess_report.json  Row/user/item counts and file paths.
 
-Assumptions and invariants:
-  Ratings are on a 1–5 scale; relevance thresholding is deferred to later stages.
-  One opinion per (user_id, item_id) pair is retained (latest occurrence wins).
-  Title-based enrichment is a best-effort fuzzy-normalized join on Title (lowercased/stripped).
-  If an item's text is empty after enrichment, item_id is used as a deterministic fallback.
-
 Libraries and rationale:
   pandas: ETL, CSV I/O, grouping, joins. Chosen for readability and course alignment.
     Alternative: polars (faster; different API; not essential for this pipeline scale).

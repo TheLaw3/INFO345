@@ -8,7 +8,7 @@ Combines multiple recommendation sources by per-user z-normalized scores:
 Workflow:
   1) Load CF and CBF recommendation files for val/test.
   2) Standardize scores per user (z-normalization) to make sources comparable.
-  3) Optionally map item popularity (log-scaled, globally z-normalized).
+  3) Map item popularity (log-scaled, globally z-normalized).
   4) Fuse with weights (w_cf, w_cbf, w_pop); optionally tune on validation.
   5) Rank per user, save fused recs, and report Top-K metrics.
 

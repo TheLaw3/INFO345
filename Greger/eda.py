@@ -12,12 +12,6 @@ Inputs/Outputs
   Outputs:
     - <outdir>/eda_stats.json          Dataset summary for reports and sanity checks.
 
-
-Assumptions
-  Ratings are on a 1–5 scale. Cleaning coerces and clamps ratings to [1, 5].
-  One row per user–item opinion after upstream de-duplication is expected.
-  Items CSV is best-effort metadata; EDA tolerates its absence.
-
 What we measure and why
   n_users, n_items, n_interactions: dataset size and shape.
   density = |R| / (|U|·|I|): sparsity level, key for CF/CBF feasibility.

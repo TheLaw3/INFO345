@@ -11,11 +11,6 @@ Outputs (written under --outdir)
   books_data.raw.csv            Unmodified copy of the items source.
   ingest_report.json            Summary of shapes, columns, and soft column hints.
 
-Assumptions and invariants
-Files are readable CSVs; delimiter and encoding are handled by pandas defaults or pandas’ auto-detection.
-No schema enforcement here; downstream code will map/validate columns.
-Snapshots are written unchanged; this module does not transform data.
-
 Libraries and rationale
 pandas: Robust CSV I/O and dtype handling for large files (used here as a dependable reader/writer).
   Alternative: polars (faster on large data, different API; not necessary for a single pass copy and report).

@@ -10,10 +10,6 @@ Strategies:
   - temporal: per user, last interaction → test, second-to-last → val,
               remaining → train.
 
-Assumptions and invariants:
-  Ratings are clamped to [1,5] upstream and each (user_id,item_id) pair is unique.
-  Random split uses a deterministic seed for reproducibility.
-
 Outputs:
   - train.csv
   - val.csv
