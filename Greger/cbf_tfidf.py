@@ -1,6 +1,43 @@
 # Greger/cbf_tfidf.py — CBF TF-IDF (fixed types + candidate cap + progress logs)
 """Content-based filtering using TF-IDF item text with optional candidate cap.
 
+This module implements a TF‑IDF‑based content‑based recommender (CBF).  It
+constructs a TF‑IDF representation for each item using textual metadata
+(e.g. title, categories and optional description), builds user profiles by
+averaging the TF‑IDF vectors of items the user has rated above a threshold,
+and ranks candidate items for each user using cosine similarity between the
+user profile vector and each item vector.  Unseen items with the highest
+similarity scores are recommended.  The code also computes offline metrics
+(precision@K, recall@K, nDCG@K and hit‑rate@K) on validation and test sets.
+
+refrences 
+
+Lecture 3 – Content‑Based Filtering (CBF) (slides on TF‑IDF and user profiles).  
+  These slides introduce representing items via their textual and
+  categorical features, using bag‑of‑words or TF‑IDF to obtain feature
+  vectors.  They explain that early CBF methods rely on TF‑IDF vectors and
+  build user profiles by averaging the vectors of items the user has liked
+  (often weighting by rating).  Recommendations are produced by ranking
+  unseen items according to cosine similarity between the user profile and
+  item vectors.  Our implementation follows this pipeline: feature
+  extraction with `TfidfVectorizer`, user profile aggregation, cosine
+  similarity scoring and ranking.
+  
+  Analytics Vidhya (2015), “Beginners Guide to Content‑Based Recommender
+   Systems.”  
+   This guide explains why TF‑IDF is popular in text‑based recommenders: it
+   down‑weights very common words (“the” appears frequently but carries little
+   meaning) and emphasises more informative terms; log scaling is used to
+   dampen the effect of high term frequencies. After
+   computing TF‑IDF scores, the guide advocates using a vector space model
+   to compute similarity: each item is stored as a vector of attributes, a
+   user profile is created by combining the vectors of liked items, and
+   similarity is measured by the cosine of the angle between vectors. These
+   principles justify our use of TF‑IDF to build item vectors and user
+   profiles, and our use of cosine similarity for ranking.  
+   URL: https://www.analyticsvidhya.com/blog/2015/08/beginners-guide-learn-content-based-recommender-systems/
+
+
 Pipeline:
   1) Load standardized train/val/test ratings and items.
   2) Ensure a text field per item (compose from Title/Categories if missing).

@@ -1,8 +1,51 @@
 """Collaborative Filtering with item-kNN (cosine) using scikit-learn.
 
-This script trains an item-based k-nearest neighbors model on implicit/explicit
-ratings and evaluates Top-K recommendation quality on validation and test sets.
+This module implements a memory‑based collaborative filtering (CF) model that
+recommends items by measuring similarities between items in the user–item
+interaction matrix.  It loads train/validation/test splits, builds a sparse
+user–item rating matrix, fits a k‑nearest neighbours index over the items
+(using cosine distance) via scikit‑learn’s `NearestNeighbors`, and then
+computes item‑to‑item similarity scores.  For each user it scores candidate
+items by aggregating (similarity × user rating) over the user’s rated items
+and ranks unseen items accordingly.  The script outputs top‑K recommendations
+and computes offline metrics (precision@K, recall@K, nDCG@K and hit‑rate@K)
+on validation and test splits.
 
+refrences 
+
+Lecture 4 & 5 – Collaborative Filtering (CF) parts 1–2.  
+  These lectures introduce memory‑based CF and describe both user‑based and
+  item‑based approaches.  The slides on “Item‑item CF algorithm” and
+  “Weighted sum of neighbour ratings” explain that item‑based CF builds a
+  similarity matrix between items (using cosine or Pearson similarity) and
+  predicts a user’s rating for an item by computing a weighted average of the
+  user’s ratings on similar items.  Our implementation follows this algorithm:
+  we compute item–item similarities via cosine similarity, select the *k*
+  nearest neighbours per item, and use a weighted sum of the user’s ratings to
+  score candidates.
+  
+  GeeksforGeeks (2024), “Item‑to‑Item Based Collaborative Filtering.”  
+   This article describes the steps of item‑based CF: (a) compute similarity
+   between all item pairs—most commonly using cosine similarity—and
+   provides the formula for cosine similarity:contentReference,
+   (b) generate predictions by taking a weighted sum of the user’s ratings on
+   similar items divided by the sum of the similarities.  
+   These equations justify our use of cosine similarity and the weighted‑sum
+   scoring function.  
+   URL: https://www.geeksforgeeks.org/machine-learning/item-to-item-based-collaborative-filtering/
+
+2. Futureweb AI (2025), “Collaborative Filtering‑Based Recommender Systems: A Deep Dive.”  
+   This blog explains that item‑based CF computes item–item similarity (using
+   metrics such as cosine or Pearson), builds an item similarity matrix, and
+   generates recommendations by looking up similar items for each item a user
+   has interacted with:contentReference. It notes that item‑based CF is
+   often preferred in large‑scale systems because item relationships remain
+   more stable over time than user relationships, making it more efficient
+  :contentReference. These insights support our choice of an item‑k‑NN
+   model for scalability.  
+   URL: https://futurewebai.com/blogs/collaborative-filtering-based-recommendation
+
+  
 Pipeline:
   1) Load and lightly clean train/val/test CSVs.
   2) Fit an item-kNN model (cosine similarity, brute force).

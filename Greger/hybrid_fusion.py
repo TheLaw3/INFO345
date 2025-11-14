@@ -1,9 +1,49 @@
 # Greger/hybrid_fusion.py — late-fusion hybrid for Top-K
 """Late-fusion hybrid recommender for Top-K ranking.
 
-Combines multiple recommendation sources by per-user z-normalized scores:
-  - CF scores (e.g., item-kNN).
-  - CBF scores (e.g., TF-IDF cosine).
+This module implements a weighted hybrid recommender that combines the
+scores of a collaborative‐filtering (CF) model and a content‐based
+filtering (CBF) model (and optionally a popularity term) to produce a
+single ranked list of items for each user.  It reads precomputed CF and
+CBF recommendation files, z‑normalises the scores per user, computes a
+log‑scaled popularity score from the training data, and then fuses the
+normalised CF scores, CBF scores and popularity weights using a linear
+combination: `hybrid_score = w_cf * z_cf + w_cbf * z_cbf + w_pop *
+z_pop`. The script performs a small grid search on validation data to
+tune the weights `(w_cf, w_cbf, w_pop)` and outputs the resulting
+top‑K recommendations and evaluation metrics.
+
+
+refrences 
+
+Lecture 6 – Hybrid recommender systems (course slides 6–9)** discusses
+  different hybrid strategies such as weighted (linear) hybrids, switching,
+  mixed and cascade hybrids.  Our implementation corresponds to a
+  *weighted hybrid*, where the outputs of CF and CBF models are combined
+  using a weighted average; this design is explicitly contrasted against
+  switching or cascade hybrids in the lecture. 
+  we also took inspiration from Lecture 4/5 and 3. Collaborative Filtering and Content-Based Filtering.
+
+Marketsy Blog (2024), “Hybrid Recommender Systems: Beginner’s Guide.”
+   The article enumerates several hybrid strategies and explains that a
+   weighted hybrid combines the outputs of collaborative and content‑based
+   models using weighted averages; the importance of each model can be
+   adjusted based on its performance:contentReference. For example,
+   if the CF model yields more accurate recommendations for a user, its
+   output can be given a higher weight. 
+   URL: https://marketsy.ai/blog/hybrid-recommender-systems-beginners-guide
+
+Milvus AI Quick Reference (2025), “How do you combine collaborative and
+   content‑based methods effectively?”  
+   This reference states that hybrid recommender systems blend the outputs
+   of CF (which relies on user–item interactions) and CBF (which uses
+   item features) to leverage the strengths of both methods.
+   It notes that a common strategy is to compute recommendations from both
+   models separately and then combine them using weighted averages:contentReference[oaicite:3]{index=3};
+   for instance, a movie recommender might use 60 % CF and 40 % CB scores
+   to balance popularity and personal preferences.  
+   URL: https://milvus.io/ai-quick-reference/how-do-you-combine-collaborative-and-contentbased-methods-effectively
+
 
 Workflow:
   1) Load CF and CBF recommendation files for val/test.

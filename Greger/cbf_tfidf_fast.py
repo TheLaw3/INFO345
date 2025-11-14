@@ -1,6 +1,9 @@
 # Greger/cbf_tfidf_fast.py — CBF TF-IDF with candidate pool + precomputed user likes
 """Content-based filtering using TF-IDF item profiles and user-like aggregation.
 
+Refrences is on cbf_tfidf.py this is a faster version with candidate pool and
+precomputed user likes.
+
 Pipeline:
   1) Load and clean train/val/test splits and item metadata.
   2) Build a TF-IDF matrix over an item-level text field.

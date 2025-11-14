@@ -1,5 +1,36 @@
 """Fast recommender baselines with progress logs and caps.
 
+Refrences
+
+Lecture 7 – Offline Evaluation (PPTX)
+  Slides 22–39: introduce rating-prediction error metrics such as MAE and
+  RMSE (“Error Rate: MAE”, “Error Rate: RMSE”). We use these definitions
+  when computing MAE/RMSE for our rating baselines (global/user/item mean).
+  Slides 41 and 43: introduce Top-N recommendation tasks and evaluation
+  for ranked recommendation lists.
+  Slides 54, 56, 65 and 74: define and illustrate Precision@K, Recall@K,
+  MAP@K and ranking-quality style metrics. Our evaluation code for the
+  random and popularity baselines uses the same family of Top-N metrics
+  (e.g. precision@10, recall@10, hit-rate@10, NDCG@10).
+
+Ekstrand, M. D., Riedl, J. T., & Konstan, J. A. (2011).
+  “Collaborative Filtering Recommender Systems.”
+  Foundations and Trends in Human–Computer Interaction, 4(2), 81–173.
+  DOI: https://doi.org/10.1561/1100000009
+  Used for: formal definition of baseline predictors such as global mean,
+  user mean and item mean (Section 2.1 “Baseline Predictors”), which
+  motivates our rating baselines, and for background on evaluation of CF
+  algorithms.
+  
+  Herlocker, J. L., Konstan, J. A., Terveen, L. G., & Riedl, J. T. (2004).
+  “Evaluating Collaborative Filtering Recommender Systems.”
+  ACM Transactions on Information Systems, 22(1), 5–53.
+  DOI: https://doi.org/10.1145/963770.963772
+  Used for: methodological guidance on offline evaluation design (choice
+  of user tasks, datasets, and accuracy metrics) and for the practice of
+  comparing new recommenders against simple non-personalized baselines
+  such as popularity or random recommenders.
+
 Implements two top-K recommenders:
   • Popularity (global most-interacted items, head scan capped).
   • Random (uniform from unseen items per user).
@@ -27,10 +58,6 @@ Outputs (under --outdir):
   • baseline_metrics.json
   • baseline_test_summary.csv
 
-Notes:
-  - Input CSVs are lightly cleaned (strip ids, coerce rating to [1,5], dedup).
-  - Popularity recommender avoids already-seen items per user.
-  - Progress logs print every N users per strategy.
 
 Why these libraries
   pandas: robust tabular IO and groupby ops used to compute popularity and clean splits.

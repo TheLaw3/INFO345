@@ -1,5 +1,41 @@
 """Prepare ratings and item metadata for CF/CBF pipelines and emit a preprocessing report.
 
+This script ingests raw ratings and item metadata, cleans and standardises
+column names, builds a consistent item catalog with enriched text fields
+for content‑based filtering, filters users and items by minimum activity
+thresholds for collaborative filtering, and writes three canonical files:
+(i) `trainable_ratings.csv` containing all cleaned interactions with
+canonical columns (`user_id`, `item_id`, `rating`, `timestamp`);
+(ii) `items.csv` containing the catalog of items with title, categories
+and a concatenated `text` field for CBF models; and (iii) `ratings_cf_train.csv`
+containing the subset of interactions involving users and items that
+meet the `min_user` and `min_item` thresholds for CF models.  A JSON
+report summarising dataset sizes, sparsity, file paths and split
+parameters is also written to assist reproducibility.
+
+refrences 
+
+Lectures 1 & 2 – Introduction.
+  Introduce the concept of sparsity in recommender datasets and explain why
+  it is important to count users, items and interactions before modelling.
+  The script prints these counts and the density to help understand the
+  dataset’s sparsity and head/tail distributions.
+  
+  abel Your Data (2025), “Data Versioning: Best Practices for ML
+  Engineers.”
+  The article notes that a straightforward data versioning strategy is
+  full duplication: saving a complete copy of the dataset whenever it
+  changes; each copy acts as a snapshot:contentReference. It also
+  recommends capturing metadata (schema, column names) and linking data
+  versions with code and experiments, and automating versioning in
+  pipelines to produce traceable snapshots:contentReference. Our
+  ingestion script duplicates the raw CSVs, and this module documents the
+  schema and shapes of the processed datasets in a report for
+  traceability.
+  URL: https://labelyourdata.com/articles/machine-learning/data-versioning 
+  
+  
+
 This script:
   1) Loads raw ratings and item metadata CSVs.
   2) Maps heterogeneous column names onto canonical fields: user_id, item_id, rating, and optional title.
@@ -22,17 +58,12 @@ Outputs:
   ratings_cf_train.csv    CF-ready subset filtered by min_user/min_item.
   preprocess_report.json  Row/user/item counts and file paths.
 
-Libraries and rationale:
+Libraries:
   pandas: ETL, CSV I/O, grouping, joins. Chosen for readability and course alignment.
     Alternative: polars (faster; different API; not essential for this pipeline scale).
   pathlib: Cross-platform path handling. Alternative: os.path (less ergonomic).
   argparse/json: Standard library for CLIs and structured reports. Alternatives: click/typer (extra deps).
 
-
-Limitations and alternatives:
-  Title matching may collide for homonymous titles; a stronger key (e.g., ASIN) would be safer when available.
-  Categories are treated as raw text; structured parsing (lists/tokens) could improve CBF quality.
-  Thresholds for CF subset are static; adaptive thresholds per dataset could be added if needed.
 """
 
 import argparse

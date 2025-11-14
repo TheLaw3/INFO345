@@ -1,9 +1,57 @@
 """Greger/eda.py — quick exploratory analysis for the standardized data.
 
-Purpose
-  Fast, deterministic EDA over standardized ratings (data
-  preparation quality), CBF text coverage via items merge and
-  evaluation design, e.g., sparsity and head–tail imbalance.
+  This script performs a quick, deterministic EDA on the training data used
+for our recommender models.  It reads a ratings CSV (user_id, item_id,
+rating) and, optionally, an items CSV containing item metadata, cleans and
+merges the data, computes summary statistics, and optionally generates
+histograms to visualize rating distributions, user activity and item
+popularity.  The results are written to a JSON file and, if requested,
+PNG plots are saved.  The goal is to understand dataset size, sparsity,
+distributional properties and potential cold‑start issues before building
+recommendation models.
+
+refrences 
+
+Lectures 1 & 2 – Introduction to Recommender Systems.  
+  The introductory slides emphasise that recommendation datasets are
+  typically very sparse (only a tiny fraction of the user–item matrix is
+  filled) and exhibit a long‑tail distribution of user activity and item
+  popularity.  Calculating `n_users`, `n_items`, `n_interactions` and
+  density (`|R| / (|U|·|I|)`) helps us gauge sparsity and anticipate
+  challenges for CF/CBF models.  Plotting histograms of user activity and
+  item popularity (both linear and log–log) reveals the head–tail
+  imbalance discussed in the lectures.  The percentage of users/items
+  with a single rating and the top‑20% popularity share quantify coldness
+  and head concentration.
+  
+  analytics Vidhya, “Step‑by‑step Exploratory Data Analysis using Python.” 
+   This article defines EDA as the process of performing initial
+   investigations on data to discover patterns and check assumptions with
+   summary statistics and graphical representations; EDA can be leveraged
+   to identify outliers, patterns, trends and clues for imputing missing
+   values. It notes that statistics summaries
+   (count, mean, std, etc.) help identify outliers and skewness.
+   We follow this guidance by computing `rating_summary`, `rating_shares`
+   and percentages of users/items with a single interaction, and by using
+   histograms to visualize distributions.
+   URL: https://www.analyticsvidhya.com/blog/2022/07/step-by-step-exploratory-data-analysis-eda-using-python/
+
+Shruti Udupa (2025), “First Try at Building a Recommendation System:
+   Exploratory Data Analysis.” 
+   In the EDA phase of a recommender project, Udupa emphasises three
+   stages: (i) initial cleaning of datasets, treating missing values and
+   identifying outliers; (ii) in‑depth analysis and visualization of
+   movie features, user behaviour patterns and rating distributions to
+   uncover relationships; and (iii) engineering new predictive features or
+   removing uninformative ones based on these insights.
+   Our script mirrors this workflow: `load_ratings` cleans and coerces
+   ratings, dropping invalid rows; `attach_titles` merges item metadata to
+   enrich the data; the core analysis computes descriptive statistics and
+   head–tail measures; optional plots visualize rating, user and item
+   distributions; and the resulting statistics (e.g. density, cold‑user
+   percentages, popularity share) inform subsequent modelling choices.
+   URL: https://medium.com/pythoneers/first-try-at-building-an-end-to-end-recommendation-system-exploratory-data-analysis-c90cfd1b6ad6
+
 
 Inputs/Outputs
   Inputs:
@@ -19,17 +67,12 @@ What we measure and why
   users_with_single_rating_pct, items_with_single_rating_pct: coldness indicators.
   top20pct_popularity_share: head concentration; affects popularity baselines and novelty.
 
-Libraries and rationale
+Libraries
   pandas: mature CSV/series ops. Alternative: polars (faster) but adds friction for course baselines.
   numpy: basic numerics and array ops; lightweight and ubiquitous.
   matplotlib: direct control for static PNGs; stable in headless mode with Agg.
     Alternatives: seaborn/plotnine (higher-level styling) not required for minimal, reproducible plots.
   pathlib/json/argparse: stdlib for paths, reports, and CLI; no extra deps.
-
-Design choices
-  Headless-safe backend (Agg) ensures CI/servers can render plots without a GUI.
-  Log–log histograms with log-spaced bins reveal long-tail patterns in activity/popularity.
-  No random state used; EDA outputs are deterministic for a given input.
 
 """
 
