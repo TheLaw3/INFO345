@@ -34,6 +34,16 @@ Lecture 4 & 5 – Collaborative Filtering (CF) parts 1–2.
    scoring function.  
    URL: https://www.geeksforgeeks.org/machine-learning/item-to-item-based-collaborative-filtering/
 
+   GeeksforGeeks (2025), “Recommender Systems using KNN.”
+    This article outlines the construction of KNN-based recommender systems by (a) collecting and preprocessing 
+    user-item interactions to form a user-item matrix, (b) computing similarity scores between users or items—most 
+    commonly using cosine similarity—and (c) finding the k-nearest neighbors for each user or item by sorting the similarity scores. 
+    The system then generates recommendations by aggregating the preferences or ratings of these nearest neighbors 
+    and recommending items with the highest predicted ratings. The article offers practical code examples 
+    using scikit-learn's NearestNeighbors and emphasizes the importance of matrix normalization and efficiency considerations for sparse datasets. 
+    These steps and principles support our use of a cosine similarity-based kNN model for item-based collaborative filtering in this project.
+    URL: https://www.geeksforgeeks.org/machine-learning/recommender-systems-using-knn/
+
 2. Futureweb AI (2025), “Collaborative Filtering‑Based Recommender Systems: A Deep Dive.”  
    This blog explains that item‑based CF computes item–item similarity (using
    metrics such as cosine or Pearson), builds an item similarity matrix, and
