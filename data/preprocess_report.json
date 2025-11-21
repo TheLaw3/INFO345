@@ -1,15 +1,15 @@
 {
-  "rows_base": 911461,
-  "users_base": 69051,
-  "items_base": 26617,
-  "rows_cf": 908176,
-  "users_cf_min_user": 68444,
-  "items_cf_min_item": 26342,
+  "rows_base": 923119,
+  "users_base": 70416,
+  "items_base": 28478,
+  "rows_cf": 911461,
+  "users_cf_min_user": 69051,
+  "items_cf_min_item": 26617,
   "min_user": 5,
   "min_item": 5,
   "paths": {
-    "trainable_ratings": "/Users/sondresolhoy/Documents/GitHub/INFO345/data/trainable_ratings.csv",
-    "items": "/Users/sondresolhoy/Documents/GitHub/INFO345/data/items.csv",
-    "ratings_cf_train": "/Users/sondresolhoy/Documents/GitHub/INFO345/data/ratings_cf_train.csv"
+    "trainable_ratings": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/trainable_ratings.csv",
+    "items": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/items.csv",
+    "ratings_cf_train": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/ratings_cf_train.csv"
   }
 }

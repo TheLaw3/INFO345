@@ -14,14 +14,14 @@
     },
     "test": {
       "users_evaluated": 56310,
-      "precision@10": 0.0752566151660451,
+      "precision@10": 0.07525661516604511,
       "recall@10": 0.752566151660451,
       "ndcg@10": 0.6211600579555475,
       "hit_rate@10": 0.752566151660451
     }
   },
   "files": {
-    "val_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/Greger/out/cf_sklearn/val_recs_knn_sklearn.csv",
-    "test_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/Greger/out/cf_sklearn/test_recs_knn_sklearn.csv"
+    "val_recs": "/Users/gregersyvertsen/Documents/GitHub/INFO345/out/cf_sklearn/val_recs_knn_sklearn.csv",
+    "test_recs": "/Users/gregersyvertsen/Documents/GitHub/INFO345/out/cf_sklearn/test_recs_knn_sklearn.csv"
   }
 }
