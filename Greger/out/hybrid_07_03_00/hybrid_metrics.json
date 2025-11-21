@@ -1,0 +1,28 @@
+{
+  "model": "Hybrid late-fusion (z-norm)",
+  "weights": {
+    "w_cf": 0.7,
+    "w_cbf": 0.3,
+    "w_pop": 0.0
+  },
+  "k_top": 10,
+  "threshold": 4.0,
+  "val": {
+    "users_evaluated": 56442,
+    "precision@10": 0.07444633429006767,
+    "recall@10": 0.7444633429006768,
+    "ndcg@10": 0.6171816809883098,
+    "hit_rate@10": 0.7444633429006768
+  },
+  "test": {
+    "users_evaluated": 56310,
+    "precision@10": 0.07425324098739122,
+    "recall@10": 0.7425324098739122,
+    "ndcg@10": 0.6149823121633821,
+    "hit_rate@10": 0.7425324098739122
+  },
+  "files": {
+    "val_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/Greger/out/hybrid_07_03_00/val_recs_hybrid.csv",
+    "test_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/Greger/out/hybrid_07_03_00/test_recs_hybrid.csv"
+  }
+}

@@ -1,14 +1,14 @@
 {
-  "ratings_path": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/trainable_ratings.csv",
-  "items_path": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/items.csv",
-  "n_users": 81266,
-  "n_items": 62846,
-  "n_interactions": 1031870,
-  "density": 0.00020204051241081374,
+  "ratings_path": "/Users/sondresolhoy/Documents/GitHub/INFO345/data/trainable_ratings.csv",
+  "items_path": "/Users/sondresolhoy/Documents/GitHub/INFO345/data/items.csv",
+  "n_users": 69051,
+  "n_items": 26617,
+  "n_interactions": 911461,
+  "density": 0.00049591701991194,
   "rating_summary": {
-    "count": 1031870.0,
-    "mean": 4.242150658513185,
-    "std": 1.1015269747070346,
+    "count": 911461.0,
+    "mean": 4.243800886708263,
+    "std": 1.0988474910827122,
     "min": 1.0,
     "25%": 4.0,
     "50%": 5.0,
@@ -16,14 +16,14 @@
     "max": 5.0
   },
   "rating_shares": {
-    "1.0": 0.0452,
-    "2.0": 0.047305,
-    "3.0": 0.101804,
-    "4.0": 0.231522,
-    "5.0": 0.574167
+    "1.0": 0.044813,
+    "2.0": 0.047016,
+    "3.0": 0.101628,
+    "4.0": 0.232645,
+    "5.0": 0.573898
   },
-  "users_with_single_rating_pct": 0.004799054955331873,
-  "items_with_single_rating_pct": 0.16645450784457244,
+  "users_with_single_rating_pct": 0.0001303384454968067,
+  "items_with_single_rating_pct": 0.0,
   "missing_titles_pct": 0.0,
-  "top20pct_popularity_share": 0.8117902448951902
+  "top20pct_popularity_share": 0.7604867350330952
 }

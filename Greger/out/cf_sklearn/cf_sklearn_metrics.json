@@ -1,0 +1,27 @@
+{
+  "model": "item-kNN sklearn cosine",
+  "params": {
+    "neighbors": 200,
+    "k_top": 10
+  },
+  "topk": {
+    "val": {
+      "users_evaluated": 56442,
+      "precision@10": 0.07536940576166684,
+      "recall@10": 0.7536940576166684,
+      "ndcg@10": 0.6225009883111869,
+      "hit_rate@10": 0.7536940576166684
+    },
+    "test": {
+      "users_evaluated": 56310,
+      "precision@10": 0.0752566151660451,
+      "recall@10": 0.752566151660451,
+      "ndcg@10": 0.6211600579555475,
+      "hit_rate@10": 0.752566151660451
+    }
+  },
+  "files": {
+    "val_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/Greger/out/cf_sklearn/val_recs_knn_sklearn.csv",
+    "test_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/Greger/out/cf_sklearn/test_recs_knn_sklearn.csv"
+  }
+}

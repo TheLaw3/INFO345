@@ -1,0 +1,21 @@
+{
+  "seed": 42,
+  "strategy": "random",
+  "time_col": null,
+  "n_rows_in": 911461,
+  "n_users_in": 69051,
+  "n_items_in": 26617,
+  "n_rows_train": 773407,
+  "n_rows_val": 69012,
+  "n_rows_test": 69042,
+  "n_users_train": 69051,
+  "n_users_val": 69012,
+  "n_users_test": 69042,
+  "n_items_train": 26617,
+  "n_items_val": 15063,
+  "n_items_test": 14984,
+  "min_train_inter": 1,
+  "min_item_support": 2,
+  "val_items_covered_in_train": 1.0,
+  "test_items_covered_in_train": 1.0
+}

@@ -1,28 +1,28 @@
 {
   "model": "Hybrid late-fusion (z-norm)",
   "weights": {
-    "w_cf": 0.5,
-    "w_cbf": 0.5,
+    "w_cf": 0.9,
+    "w_cbf": 0.4,
     "w_pop": 0.0
   },
   "k_top": 10,
   "threshold": 4.0,
   "val": {
-    "users_evaluated": 63947,
-    "precision@10": 0.06705396656606251,
-    "recall@10": 0.6705396656606252,
-    "ndcg@10": 0.5465483115228832,
-    "hit_rate@10": 0.6705396656606252
+    "users_evaluated": 56442,
+    "precision@10": 0.07446227986251372,
+    "recall@10": 0.7446227986251374,
+    "ndcg@10": 0.6172017811645436,
+    "hit_rate@10": 0.7446227986251374
   },
   "test": {
-    "users_evaluated": 64499,
-    "precision@10": 0.06648010046667391,
-    "recall@10": 0.664801004666739,
-    "ndcg@10": 0.5410089269237323,
-    "hit_rate@10": 0.664801004666739
+    "users_evaluated": 56310,
+    "precision@10": 0.07426567217190552,
+    "recall@10": 0.7426567217190553,
+    "ndcg@10": 0.6149876228457711,
+    "hit_rate@10": 0.7426567217190553
   },
   "files": {
-    "val_recs": "/Users/gregersyvertsen/Documents/GitHub/INFO345/out/hybrid/val_recs_hybrid.csv",
-    "test_recs": "/Users/gregersyvertsen/Documents/GitHub/INFO345/out/hybrid/test_recs_hybrid.csv"
+    "val_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/out/hybrid/val_recs_hybrid.csv",
+    "test_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/out/hybrid/test_recs_hybrid.csv"
   }
 }

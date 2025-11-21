@@ -13,22 +13,22 @@
   },
   "topk": {
     "val": {
-      "users_evaluated": 63277,
-      "precision@10": 0.047287323988178954,
-      "recall@10": 0.4728732398817896,
-      "ndcg@10": 0.37071031102317226,
-      "hit_rate@10": 0.4728732398817896
+      "users_evaluated": 55970,
+      "precision@10": 0.05256387350366268,
+      "recall@10": 0.5256387350366267,
+      "ndcg@10": 0.4118419860502735,
+      "hit_rate@10": 0.5256387350366267
     },
     "test": {
-      "users_evaluated": 63729,
-      "precision@10": 0.046955075397385804,
-      "recall@10": 0.46955075397385804,
-      "ndcg@10": 0.3660066368689438,
-      "hit_rate@10": 0.46955075397385804
+      "users_evaluated": 55825,
+      "precision@10": 0.05250156739811911,
+      "recall@10": 0.5250156739811912,
+      "ndcg@10": 0.4118134264010477,
+      "hit_rate@10": 0.5250156739811912
     }
   },
   "files": {
-    "val_recs": "/Users/gregersyvertsen/Documents/GitHub/INFO345/out/cbf/val_recs_cbf.csv",
-    "test_recs": "/Users/gregersyvertsen/Documents/GitHub/INFO345/out/cbf/test_recs_cbf.csv"
+    "val_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/out/cbf/val_recs_cbf.csv",
+    "test_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/out/cbf/test_recs_cbf.csv"
   }
 }
