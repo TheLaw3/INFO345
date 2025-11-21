@@ -63,13 +63,6 @@ Pipeline:
   4) Compute precision@K, recall@K, nDCG@K, hit-rate@K.
   5) Save recommendation files and a metrics JSON.
 
-CLI:
-  --train, --val, --test  Paths to ratings CSVs with user_id,item_id,rating
-  --k_top                 Number of recommendations per user (default: 10)
-  --neighbors             Item neighbors for kNN search (default: 200)
-  --threshold             Rating threshold for relevance (default: 4.0)
-  --outdir                Output directory (default: out/cf_sklearn)
-
 Outputs:
   <outdir>/val_recs_knn_sklearn.csv
   <outdir>/test_recs_knn_sklearn.csv

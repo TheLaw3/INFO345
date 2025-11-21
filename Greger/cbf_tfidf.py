@@ -45,17 +45,6 @@ Pipeline:
      candidates via cosine similarity, excluding already seen items.
   5) Emit top-K recommendations and evaluate precision/recall/nDCG/hit-rate.
 
-CLI:
-  --train/--val/--test   Paths to ratings CSVs with user_id,item_id,rating.
-  --items                Items CSV with item_id and optional text/title/categories.
-  --text_col             Name of text column to use/create (default: "text").
-  --k_top                Cutoff K for recommendations (default: 10).
-  --threshold            Rating ≥ threshold marks relevance and “liked” (default: 4.0).
-  --min_df, --max_features, --ngram_max, --stop_words  TF-IDF hyperparams.
-  --cand_pool            0 = full catalog; >0 = cap candidate set by popularity head.
-  --limit_users_val/test Optional user caps for quick runs.
-  --outdir               Output directory (default: out/cbf).
-
 Outputs:
   - <outdir>/val_recs_cbf.csv, <outdir>/test_recs_cbf.csv
   - <outdir>/cbf_metrics.json with params and Top-K metrics.
