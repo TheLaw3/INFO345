@@ -2,28 +2,28 @@
 """Split cleaned ratings into train/val/test by user using random or temporal strategy.
 
 This module reads a cleaned ratings file (with columns `user_id`, `item_id`,
-`rating` and an optional timestamp) and partitions each user’s interactions
+`rating` and an timestamp) and partitions each user’s interactions
 into three disjoint sets. Two strategies are supported:
 
-Random per‑user split**: For each user, one interaction is held out for the
+Random per‑user split: For each user, one interaction is held out for the
   test set, and—if the user has at least three interactions—a second is held
   out for validation. A coverage-aware heuristic (`pick_idx_prefer_supported`)
   prefers to hold out interactions on items with higher global support so that
   rare items remain in the training set. Remaining interactions form the
   training set.
 
-Temporal per‑user split**: Interactions for each user are sorted by
+Temporal per‑user split: Interactions for each user are sorted by
   timestamp; the most recent interaction is placed in the test set, the
   second‑most recent (if present) becomes validation, and the rest form the
   training set.
 
-After splitting, the script optionally filters out users with fewer than
+After splitting, the script filters out users with fewer than
 `min_train_inter` training interactions. It writes three CSVs—`train.csv`,
 `val.csv`, `test.csv`—and a `split_stats.json
 
 
 Strategies:
-  - random: per user, select one test row and optionally one validation row,
+  - random: per user, select one test row and one validation row,
             preferring items that keep catalog coverage intact using a heuristic.
   - temporal: per user, last interaction → test, second-to-last → val,
               remaining → train.

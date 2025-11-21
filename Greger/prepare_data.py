@@ -4,13 +4,17 @@ This script ingests raw ratings and item metadata, cleans and standardises
 column names, builds a consistent item catalog with enriched text fields
 for content‑based filtering, filters users and items by minimum activity
 thresholds for collaborative filtering, and writes three canonical files:
-(i) `trainable_ratings.csv` containing all cleaned interactions with
+
+1. `trainable_ratings.csv` containing all cleaned interactions with
 canonical columns (`user_id`, `item_id`, `rating`, `timestamp`);
-(ii) `items.csv` containing the catalog of items with title, categories
-and a concatenated `text` field for CBF models; and (iii) `ratings_cf_train.csv`
-containing the subset of interactions involving users and items that
-meet the `min_user` and `min_item` thresholds for CF models.  A JSON
-report summarising dataset sizes, sparsity, file paths and split
+
+2.`items.csv` containing the catalog of items with title, categories
+and a concatenated `text` field for CBF models; and 
+
+3. `ratings_cf_train.csv` containing the subset of interactions involving users and items that
+meet the `min_user` and `min_item` thresholds for CF models.  
+
+A JSON file summarising dataset sizes, sparsity, file paths and split
 parameters is also written to assist reproducibility.
 
 refrences 

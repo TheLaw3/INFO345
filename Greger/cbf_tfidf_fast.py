@@ -1,39 +1,8 @@
-# Greger/cbf_tfidf_fast.py — CBF TF-IDF with candidate pool + precomputed user likes
+# Greger/cbf_tfidf_fast.py — CBF TF-IDF with precomputed user likes
 """Content-based filtering using TF-IDF item profiles and user-like aggregation.
 
 Refrences is on cbf_tfidf.py this is a faster version with candidate pool and
 precomputed user likes.
-
-Pipeline:
-  1) Load and clean train/val/test splits and item metadata.
-  2) Build a TF-IDF matrix over an item-level text field.
-  3) For each user, aggregate liked-items' TF-IDF vectors into a normalized profile.
-  4) Score a capped candidate pool via cosine similarity, exclude seen items, and
-     emit top-K per user for val/test.
-  5) Evaluate with precision/recall/nDCG/hit-rate at K and write metrics.
-
-Inputs (CLI):
-  --train, --val, --test: Paths to ratings CSVs with columns [user_id, item_id, rating].
-  --items:                Items CSV with item_id and a text field (or fields to compose one).
-  --text_col:             Name of the text column in items (default: "text").
-  --k_top:                Cutoff K for top-K recommendations.
-  --threshold:            Rating >= threshold marks relevance and "liked" in training.
-  --min_df, --max_features, --ngram_max, --stop_words: TF-IDF hyperparameters.
-  --cand_pool:            Cap on candidate items by popularity head.
-  --limit_users_val/test: Optional caps on users for quick runs.
-  --outdir:               Output directory for recs and metrics.
-
-Outputs:
-  - outdir/val_recs_cbf.csv, outdir/test_recs_cbf.csv
-  - outdir/cbf_metrics.json
-
-Why these libraries:
-  pandas: reliable CSV I/O and groupby; aligns with the rest of the project stack.
-    Alternative: polars (faster) skipped to reduce dependencies and keep sklearn interop simple.
-  numpy: vector ops, masking, and typed arrays; Python's random/itertools would be slower.
-  scikit-learn: TfidfVectorizer and normalize give a stable, well-tested baseline.
-    Alternative: custom TF-IDF or spaCy would add complexity without accuracy benefit here.
-  scipy.sparse: CSR matrices keep memory bounded on large catalogs; dense arrays would not scale.
 
 """
 
@@ -79,11 +48,8 @@ def hitrate_at_k(rec_items, rel_set, k):
     return 1.0 if any(i in rel_set for i in rec_items[:k]) else 0.0
 
 def eval_topk(recs_df, eval_df, k):
-    """Evaluate top-K recommendations against relevance per user.
-
-    Aggregates per-user precision, recall (skips users with empty rel sets),
-    nDCG, and hit-rate, then returns their means.
-
+    """
+    Evaluate top-K recommendations against relevance per user.
     """
     rel_per_user = eval_df.groupby("user_id")["item_id"].apply(set)
     recs_k = recs_df[recs_df["rank"] <= k]
@@ -106,14 +72,8 @@ def eval_topk(recs_df, eval_df, k):
     }
 
 def load_splits(train_path, val_path, test_path):
-    """Load and clean train/val/test ratings splits.
-
-    Cleaning:
-      - Drop rows with missing user_id/item_id.
-      - Strip identifiers and coerce rating to [1, 5].
-      - Drop rows with NaN ratings.
-      - Keep last duplicate per (user_id,item_id).
-
+    """
+    Load and clean train/val/test ratings splits.
     """
     train = pd.read_csv(train_path)
     val   = pd.read_csv(val_path)
@@ -141,13 +101,8 @@ def pick(colnames, candidates):
     return None
 
 def main():
-    """Build TF-IDF CBF recommendations with a capped candidate pool and evaluate.
-
-    Steps:
-      - Load splits and items, create or compose a text field.
-      - Fit TF-IDF, construct user profiles from liked items (rating >= threshold).
-      - Score candidates via cosine similarity and write top-K recs for val/test.
-      - Compute top-K metrics and save a metrics JSON.
+    """
+    Build TF-IDF CBF recommendations with a capped candidate pool and evaluate.
     """
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", required=True)

@@ -3,9 +3,8 @@
 
 This module implements a weighted hybrid recommender that combines the
 scores of a collaborative‐filtering (CF) model and a content‐based
-filtering (CBF) model (and optionally a popularity term) to produce a
-single ranked list of items for each user.  It reads precomputed CF and
-CBF recommendation files, z‑normalises the scores per user, computes a
+filtering (CBF) model to produce a single ranked list of items for each user.  
+It reads precomputed CF and CBF recommendation files, z‑normalises the scores per user, computes a
 log‑scaled popularity score from the training data, and then fuses the
 normalised CF scores, CBF scores and popularity weights using a linear
 combination: `hybrid_score = w_cf * z_cf + w_cbf * z_cbf + w_pop *

@@ -1,12 +1,12 @@
 """Greger/eda.py — quick exploratory analysis for the standardized data.
 
   This script performs a quick, deterministic EDA on the training data used
-for our recommender models.  It reads a ratings CSV (user_id, item_id,
-rating) and, optionally, an items CSV containing item metadata, cleans and
-merges the data, computes summary statistics, and optionally generates
+for our recommender models. It reads a ratings CSV (user_id, item_id,
+rating) and, an items CSV containing item metadata, cleans and
+merges the data, computes summary statistics, and generates
 histograms to visualize rating distributions, user activity and item
-popularity.  The results are written to a JSON file and, if requested,
-PNG plots are saved.  The goal is to understand dataset size, sparsity,
+popularity. The results are written to a JSON file and, if requested,
+PNG plots are saved. The goal is to understand dataset size, sparsity,
 distributional properties and potential cold‑start issues before building
 recommendation models.
 
@@ -39,10 +39,13 @@ Lectures 1 & 2 – Introduction to Recommender Systems.
 Shruti Udupa (2025), “First Try at Building a Recommendation System:
    Exploratory Data Analysis.” 
    In the EDA phase of a recommender project, Udupa emphasises three
-   stages: (i) initial cleaning of datasets, treating missing values and
-   identifying outliers; (ii) in‑depth analysis and visualization of
+   stages: 
+   1. initial cleaning of datasets, treating missing values and
+   identifying outliers; 
+   2. in‑depth analysis and visualization of
    movie features, user behaviour patterns and rating distributions to
-   uncover relationships; and (iii) engineering new predictive features or
+   uncover relationships;  
+   3. engineering new predictive features or
    removing uninformative ones based on these insights.
    Our script mirrors this workflow: `load_ratings` cleans and coerces
    ratings, dropping invalid rows; `attach_titles` merges item metadata to
@@ -81,7 +84,7 @@ import json
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")  # headless-safe backend
+matplotlib.use("Agg")  
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd

@@ -1,12 +1,11 @@
 # Greger/cbf_tfidf.py — CBF TF-IDF (fixed types + candidate cap + progress logs)
-"""Content-based filtering using TF-IDF item text with optional candidate cap.
+"""Content-based filtering using TF-IDF item text with candidate cap.
 
-This module implements a TF‑IDF‑based content‑based recommender (CBF).  It
-constructs a TF‑IDF representation for each item using textual metadata
-(e.g. title, categories and optional description), builds user profiles by
+This module implements a TF‑IDF‑based content‑based recommender (CBF). It
+constructs a TF‑IDF representation for each item using textual metadata, builds user profiles by
 averaging the TF‑IDF vectors of items the user has rated above a threshold,
 and ranks candidate items for each user using cosine similarity between the
-user profile vector and each item vector.  Unseen items with the highest
+user profile vector and each item vector. Unseen items with the highest
 similarity scores are recommended.  The code also computes offline metrics
 (precision@K, recall@K, nDCG@K and hit‑rate@K) on validation and test sets.
 
@@ -186,7 +185,6 @@ def main():
       - For each user, build a normalized profile from liked items (rating ≥ threshold).
       - Score candidate items, exclude seen, take top-K.
       - Write rec files and a metrics JSON.
-
     """
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", required=True)
@@ -199,7 +197,7 @@ def main():
     ap.add_argument("--min_df", type=int, default=2)
     ap.add_argument("--max_features", type=int, default=100000)
     ap.add_argument("--ngram_max", type=int, default=2)
-    ap.add_argument("--stop_words", default="english")   # "none" to disable
+    ap.add_argument("--stop_words", default="english")  
     ap.add_argument("--cand_pool", type=int, default=0, help="0 = full catalog; >0 = cap by popularity")
     ap.add_argument("--limit_users_val",  type=int, default=None)
     ap.add_argument("--limit_users_test", type=int, default=None)

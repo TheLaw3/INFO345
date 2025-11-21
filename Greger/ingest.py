@@ -4,12 +4,15 @@
 This script reads the raw ratings and item metadata CSVs, makes byte‑exact
 copies in a dedicated output directory (`data/raw` by default) and writes a
 JSON report describing the datasets (file paths, row/column counts, column
-names and simple column hints).  It accepts three command‑line arguments:
-`--ratings` (path to the user–item ratings CSV), `--items` (path to the
-item metadata CSV) and `--outdir` (where the copied files and report are
-saved). By duplicating the raw inputs and recording their structure, the
-script ensures that downstream preprocessing, analysis and modelling can
-always be traced back to a fixed snapshot of the original data.
+names and simple column hints). 
+
+It accepts three command‑line arguments:
+`--ratings` (path to the user–item ratings CSV), 
+`--items` (path to the
+item metadata CSV) and 
+`--outdir` (where the copied files and report are saved). 
+By duplicating the raw inputs and recording their structure, the script ensures that downstream preprocessing, 
+analysis and modelling can always be traced back to a fixed snapshot of the original data.
 
 refrences 
 

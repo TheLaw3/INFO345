@@ -44,7 +44,7 @@ Lecture 4 & 5 – Collaborative Filtering (CF) parts 1–2.
     These steps and principles support our use of a cosine similarity-based kNN model for item-based collaborative filtering in this project.
     URL: https://www.geeksforgeeks.org/machine-learning/recommender-systems-using-knn/
 
-2. Futureweb AI (2025), “Collaborative Filtering‑Based Recommender Systems: A Deep Dive.”  
+  Futureweb AI (2025), “Collaborative Filtering‑Based Recommender Systems: A Deep Dive.”  
    This blog explains that item‑based CF computes item–item similarity (using
    metrics such as cosine or Pearson), builds an item similarity matrix, and
    generates recommendations by looking up similar items for each item a user
@@ -178,7 +178,7 @@ class ItemKNN:
 
     def fit(self, train_df):
         """
-        Fit the item-kNN model on a cleaned training DataFrame.
+        Fit the item-kNN model on a cleaned training dataframe.
 
         Steps:
           1) Deduplicate (user_id,item_id) pairs.

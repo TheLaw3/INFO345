@@ -32,32 +32,15 @@ Ekstrand, M. D., Riedl, J. T., & Konstan, J. A. (2011).
   such as popularity or random recommenders.
 
 Implements two top-K recommenders:
-  • Popularity (global most-interacted items, head scan capped).
-  • Random (uniform from unseen items per user).
+Popularity (global most-interacted items, head scan capped).
+Random (uniform from unseen items per user).
 
 Also implements rating prediction baselines:
-  • Global/user/item mean with RMSE/MAE.
+  Global/user/item mean with RMSE/MAE.
 
 Top-K metrics:
-  • precision@k, recall@k, ndcg@k, hit_rate@k.
-  • Catalog coverage and novelty percentile for popularity at Kmax.
-
-CLI inputs:
-  --train/--val/--test   CSVs with columns: user_id, item_id, rating.
-  --items                Optional catalog CSV with item_id column.
-  --k                    Comma-separated list, e.g., "5,10".
-  --threshold            Rating threshold for relevance (default 4.0).
-  --outdir               Output directory for artifacts.
-  --seed                 RNG seed for random.
-  --pop_scan_limit       Cap on scanned popularity head.
-  --limit_users_val/test Optional user limits for quick smoke tests.
-
-Outputs (under --outdir):
-  • val_recs_pop.csv, test_recs_pop.csv
-  • val_recs_rand.csv, test_recs_rand.csv
-  • baseline_metrics.json
-  • baseline_test_summary.csv
-
+  precision@k, recall@k, ndcg@k, hit_rate@k.
+  Catalog coverage and novelty percentile for popularity at Kmax.
 
 Why these libraries
   pandas: robust tabular IO and groupby ops used to compute popularity and clean splits.
