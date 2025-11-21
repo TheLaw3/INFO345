@@ -1,6 +1,6 @@
 """Fast recommender baselines with progress logs and caps.
 
-Refrences
+Refrences 
 
 Lecture 7 – Offline Evaluation (PPTX)
   Slides 22–39: introduce rating-prediction error metrics such as MAE and

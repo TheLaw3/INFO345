@@ -75,8 +75,8 @@ Why these libraries:
   scikit-learn: NearestNeighbors provides a tested brute-force cosine kNN.
 
 Limitations:
-  - Cold-start items and users cannot be recommended or evaluated.
-  - Raw ratings used directly; no mean-centering or normalization per user/item.
+   Cold-start items and users cannot be recommended or evaluated.
+   Raw ratings used directly; no mean-centering or normalization per user/item.
 """
 
 import argparse, json, math

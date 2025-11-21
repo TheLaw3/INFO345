@@ -15,10 +15,10 @@ top‑K recommendations and evaluation metrics.
 
 refrences 
 
-Lecture 6 – Hybrid recommender systems (course slides 6–9)** discusses
+Lecture 6 – Hybrid recommender systems (course slides 6–9) discusses
   different hybrid strategies such as weighted (linear) hybrids, switching,
   mixed and cascade hybrids.  Our implementation corresponds to a
-  *weighted hybrid*, where the outputs of CF and CBF models are combined
+  weighted hybrid, where the outputs of CF and CBF models are combined
   using a weighted average; this design is explicitly contrasted against
   switching or cascade hybrids in the lecture. 
   we also took inspiration from Lecture 4/5 and 3. Collaborative Filtering and Content-Based Filtering.
