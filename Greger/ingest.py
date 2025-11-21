@@ -24,7 +24,7 @@ Lectures 1 & 2 Introduction to Recommender Systems emphasise that raw
   to document data characteristics before starting exploratory analysis.
 
 
-Outputs (written under --outdir)
+Outputs 
   books_rating_cleaned.raw.csv  Unmodified copy of the ratings source.
   books_data.raw.csv            Unmodified copy of the items source.
   ingest_report.json            Summary of shapes, columns, and soft column hints.
