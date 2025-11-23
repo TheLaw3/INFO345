@@ -1,4 +1,4 @@
-Reproducibility
+# Reproducibility
 This section specifies the code, data, environment, and commands
 used in the experiments. Link: https://github.com/TheLaw3/INFO345
 Code repository
@@ -96,7 +96,7 @@ python Greger/hybrid_fusion.py \
 
 
 
-
+# Ingest
 """Ingest raw ratings and items CSVs into a project data directory and emit a schema report.
 
 This script reads the raw ratings and item metadata CSVs, makes byte‑exact
@@ -135,7 +135,7 @@ argparse/json: Standard library CLIs and structured reports. Alternatives: click
 
 """
 
-
+# prepare data
 """Prepare ratings and item metadata for CF/CBF pipelines and emit a preprocessing report.
 
 This script ingests raw ratings and item metadata, cleans and standardises
@@ -249,7 +249,7 @@ Outputs:
 
 """
 
-
+# eda
 """Greger/eda.py — quick exploratory analysis for the standardized data.
 
   This script performs a quick, deterministic EDA on the training data used
@@ -332,7 +332,7 @@ Libraries
 """
 
 
-
+# baselines
 """Fast recommender baselines with progress logs and caps.
 
 Refrences 
@@ -390,8 +390,8 @@ Why these libraries
 
 
 
-
-# Greger/cbf_tfidf.py — CBF TF-IDF (fixed types + candidate cap + progress logs)
+# Content-based filtering using TF-IDF item text with candidate cap.
+Greger/cbf_tfidf.py — CBF TF-IDF (fixed types + candidate cap + progress logs)
 """Content-based filtering using TF-IDF item text with candidate cap.
 
 This module implements a TF‑IDF‑based content‑based recommender (CBF). It
@@ -458,7 +458,7 @@ Alternatives considered:
 
 
 
-
+# Collaborative Filtering with item-kNN (cosine) using scikit-learn.
 
 """Collaborative Filtering with item-kNN (cosine) using scikit-learn.
 
@@ -543,7 +543,7 @@ Limitations:
 
 
 
-
+# Late-fusion hybrid recommender for Top-K ranking.
 """
 Greger/hybrid_fusion.py — late-fusion hybrid for Top-K
 Late-fusion hybrid recommender for Top-K ranking.
