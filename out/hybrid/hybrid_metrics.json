@@ -24,7 +24,7 @@
     "novelty_percentile": 0.6038325343915522
   },
   "files": {
-    "val_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/out/hybrid/val_recs_hybrid.csv",
-    "test_recs": "/Users/sondresolhoy/Documents/GitHub/INFO345/out/hybrid/test_recs_hybrid.csv"
+    "val_recs": "/Users//Documents/GitHub/INFO345/out/hybrid/val_recs_hybrid.csv",
+    "test_recs": "/Users//Documents/GitHub/INFO345/out/hybrid/test_recs_hybrid.csv"
   }
 }

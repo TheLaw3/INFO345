@@ -1,4 +1,4 @@
-"""Greger/eda.py — quick exploratory analysis for the standardized data.
+"""Src/eda.py — quick exploratory analysis for the standardized data.
 
   This script performs a quick, deterministic EDA on the training data used
 for our recommender models. It reads a ratings CSV (user_id, item_id,

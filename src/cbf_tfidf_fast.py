@@ -1,4 +1,4 @@
-# Greger/cbf_tfidf_fast.py — CBF TF-IDF with precomputed user likes
+# Src/cbf_tfidf_fast.py — CBF TF-IDF with precomputed user likes
 """Content-based filtering using TF-IDF item profiles and user-like aggregation.
 
 Refrences is on cbf_tfidf.py this is a faster version with candidate pool and

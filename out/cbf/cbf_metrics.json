@@ -28,7 +28,7 @@
     }
   },
   "files": {
-    "val_recs": "/Users/gregersyvertsen/Documents/GitHub/INFO345/out/cbf/val_recs_cbf.csv",
-    "test_recs": "/Users/gregersyvertsen/Documents/GitHub/INFO345/out/cbf/test_recs_cbf.csv"
+    "val_recs": "/Users//Documents/GitHub/INFO345/out/cbf/val_recs_cbf.csv",
+    "test_recs": "/Users//Documents/GitHub/INFO345/out/cbf/test_recs_cbf.csv"
   }
 }

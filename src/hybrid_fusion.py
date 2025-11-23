@@ -1,5 +1,5 @@
 """
-Greger/hybrid_fusion.py — late-fusion hybrid for Top-K
+Src/hybrid_fusion.py — late-fusion hybrid for Top-K
 Late-fusion hybrid recommender for Top-K ranking.
 
 

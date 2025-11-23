@@ -21,7 +21,7 @@
     }
   },
   "files": {
-    "val_recs": "/Users/gregersyvertsen/Documents/GitHub/INFO345/out/cf_sklearn/val_recs_knn_sklearn.csv",
-    "test_recs": "/Users/gregersyvertsen/Documents/GitHub/INFO345/out/cf_sklearn/test_recs_knn_sklearn.csv"
+    "val_recs": "/Users//Documents/GitHub/INFO345/out/cf_sklearn/val_recs_knn_sklearn.csv",
+    "test_recs": "/Users//Documents/GitHub/INFO345/out/cf_sklearn/test_recs_knn_sklearn.csv"
   }
 }

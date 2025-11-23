@@ -3,13 +3,13 @@ This section specifies the code, data, environment, and commands
 used in the experiments. Link: https://github.com/TheLaw3/INFO345
 Code repository
 The main entry points are:
--Greger/prepare_data.py: data cleaning and construction of
+-src/prepare_data.py: data cleaning and construction of
 CF/CBF-ready tables.
-- Greger/split.py: creation of train/validation/test splits.
--Greger/baselines.py: random and popularity baselines.
--Greger/cbf_tfidf.py: content-based TF–IDF recommender.
--Greger/cf_sklearn.py: item-kNN collaborative filtering.
--Greger/hybrid_fusion.py: weighted late-fusion hybrid (CF +
+-src/split.py: creation of train/validation/test splits.
+-src/baselines.py: random and popularity baselines.
+-src/cbf_tfidf.py: content-based TF–IDF recommender.
+-src/cf_sklearn.py: item-kNN collaborative filtering.
+-src/hybrid_fusion.py: weighted late-fusion hybrid (CF +
 CBF + popularity).
 Dataset and external download
 We use the Amazon Books ReviewsAmazon Book Reviews dataset
@@ -39,59 +39,65 @@ conda create -n info345-py311 python=3.11
 conda activate info345-py311
 pip install pandas numpy scikit-learn
 Random seeds
-All random seeds are fixed to 42. The splitting script Greger/split.py
-and the baseline script Greger/baselines.py both expose a –seed
+All random seeds are fixed to 42. The splitting script src/split.py
+and the baseline script src/baselines.py both expose a –seed
 argument (default 42), and this default is used in all reported runs.
 Any internal use of NumPy/Python RNG also uses seed 42.
 Step-by-step commands
 From the repository root, the full pipeline (data preparation, base-
 lines, CBF, CF, hybrid) can be executed with:
 1) Prepare CF/CBF-ready ratings and item tables
-python Greger/prepare_data.py \
---ratings ratings_clean.csv \
---items books_data.csv \
---outdir data \
---min_user 5 \
---min_item 5
+python src/prepare_data.py \
+  --ratings ratings_clean.csv \
+  --items   books_data.csv \
+  --outdir  data \
+  --min_user 5 \
+  --min_item 5
+
 2) Train/validation/test split (hold-out, seed=42)
-python Greger/split.py \
---ratings data/trainable_ratings.csv \
---outdir data \
---seed 42
+python src/split.py \
+  --ratings data/trainable_ratings.csv \
+  --outdir  data \
+  --seed 42
+
 3) Baseline recommenders (popularity + random)
-python Greger/baselines.py \
---train data/train.csv \
---val data/val.csv \
---test data/test.csv \
---items data/items.csv \
---outdir out/baselines \
---seed 42
+python src/baselines.py \
+  --train data/train.csv \
+  --val   data/val.csv \
+  --test  data/test.csv \
+  --items data/items.csv \
+  --outdir out/baselines \
+  --seed 42
+
 4) Content-based TF–IDF recommender
-python Greger/cbf_tfidf.py \
---train data/train.csv \
---val data/val.csv \
---test data/test.csv \
---items data/items.csv \
---outdir out/cbf
+python src/cbf_tfidf.py \
+  --train data/train.csv \
+  --val   data/val.csv \
+  --test  data/test.csv \
+  --items data/items.csv \
+  --outdir out/cbf
+
 5) Item-kNN collaborative filtering (sklearn)
-python Greger/cf_sklearn.py \
---train data/train.csv \
---val data/val.csv \
---test data/test.csv \
---outdir out/cf_sklearn
+python src/cf_sklearn.py \
+  --train data/train.csv \
+  --val   data/val.csv \
+  --test  data/test.csv \
+  --outdir out/cf_sklearn
+
 6) Weighted late-fusion hybrid (CF + CBF + popularity)
-python Greger/hybrid_fusion.py \
---train data/train.csv \
---val data/val.csv \
--test data/test.csv \
---cf_val out/cf_sklearn/val_recs_knn_sklearn.csv \
---cf_test out/cf_sklearn/test_recs_knn_sklearn.csv \
---cbf_val out/cbf/val_recs_cbf.csv \
---cbf_test out/cbf/test_recs_cbf.csv \
---k_top 10 \
---threshold 4.0 \
---w_cf 0.9 --w_cbf 0.4 --w_pop 0.0 \
---outdir out/hybrid
+python src/hybrid_fusion.py \
+  --train   data/train.csv \
+  --val     data/val.csv \
+  --test    data/test.csv \
+  --cf_val  out/cf_sklearn/val_recs_knn_sklearn.csv \
+  --cf_test out/cf_sklearn/test_recs_knn_sklearn.csv \
+  --cbf_val out/cbf/val_recs_cbf.csv \
+  --cbf_test out/cbf/test_recs_cbf.csv \
+  --k_top 10 \
+  --threshold 4.0 \
+  --w_cf 0.9 --w_cbf 0.4 --w_pop 0.0 \
+  --outdir out/hybrid
+
 
 
 
@@ -250,7 +256,7 @@ Outputs:
 """
 
 # eda
-"""Greger/eda.py — quick exploratory analysis for the standardized data.
+"""src/eda.py — quick exploratory analysis for the standardized data.
 
   This script performs a quick, deterministic EDA on the training data used
 for our recommender models. It reads a ratings CSV (user_id, item_id,
@@ -391,7 +397,7 @@ Why these libraries
 
 
 # Content-based filtering using TF-IDF item text with candidate cap.
-Greger/cbf_tfidf.py — CBF TF-IDF (fixed types + candidate cap + progress logs)
+src/cbf_tfidf.py — CBF TF-IDF (fixed types + candidate cap + progress logs)
 """Content-based filtering using TF-IDF item text with candidate cap.
 
 This module implements a TF‑IDF‑based content‑based recommender (CBF). It
@@ -545,7 +551,7 @@ Limitations:
 
 # Late-fusion hybrid recommender for Top-K ranking.
 """
-Greger/hybrid_fusion.py — late-fusion hybrid for Top-K
+src/hybrid_fusion.py — late-fusion hybrid for Top-K
 Late-fusion hybrid recommender for Top-K ranking.
 
 

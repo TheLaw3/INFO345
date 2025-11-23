@@ -1,4 +1,4 @@
-# Greger/cbf_tfidf.py — CBF TF-IDF (fixed types + candidate cap + progress logs)
+# Src/cbf_tfidf.py — CBF TF-IDF (fixed types + candidate cap + progress logs)
 """Content-based filtering using TF-IDF item text with candidate cap.
 
 This module implements a TF‑IDF‑based content‑based recommender (CBF). It

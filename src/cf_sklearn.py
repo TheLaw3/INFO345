@@ -91,7 +91,7 @@ import pandas as pd
 import numpy as np
 
 # 1. Load recommendations from your CF model
-cf_recs_path = "Greger/out/cf_sklearn/test_recs_knn_sklearn.csv"
+cf_recs_path = "Src/out/cf_sklearn/test_recs_knn_sklearn.csv"
 recs_test = pd.read_csv(cf_recs_path)
 
 # 2. Restrict to top-K (same as in your experiments, usually K=10)
@@ -104,7 +104,7 @@ items_df = pd.read_csv(cat_items_path)
 all_items = set(items_df["item_id"].astype(str))
 
 # 4. Load training set to compute item popularity
-train_path = "Greger/data/train.csv"
+train_path = "Src/data/train.csv"
 train_df = pd.read_csv(train_path)
 pop_counts = train_df["item_id"].astype(str).value_counts()
 

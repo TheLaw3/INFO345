@@ -8,8 +8,8 @@
   "min_user": 5,
   "min_item": 5,
   "paths": {
-    "trainable_ratings": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/trainable_ratings.csv",
-    "items": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/items.csv",
-    "ratings_cf_train": "/Users/gregersyvertsen/Documents/GitHub/INFO345/data/ratings_cf_train.csv"
+    "trainable_ratings": "/Users//Documents/GitHub/INFO345/data/trainable_ratings.csv",
+    "items": "/Users//Documents/GitHub/INFO345/data/items.csv",
+    "ratings_cf_train": "/Users//Documents/GitHub/INFO345/data/ratings_cf_train.csv"
   }
 }

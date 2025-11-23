@@ -1,6 +1,6 @@
 
 """"
-Greger/eda_plots.py — generate EDA plots for the standardized data.
+Src/eda_plots.py — generate EDA plots for the standardized data.
 
    This script generates various exploratory data analysis (EDA) plots
    for the training data used in our recommender models. It reads a ratings
@@ -10,7 +10,7 @@ Greger/eda_plots.py — generate EDA plots for the standardized data.
    long-tail curve of item interactions. The plots are saved in PNG and PDF
    formats in the specified output directory. 
    
-   look at Greger/eda.py for more details on the dataset and EDA context.
+   look at Src/eda.py for more details on the dataset and EDA context.
 """
 
 import pandas as pd
