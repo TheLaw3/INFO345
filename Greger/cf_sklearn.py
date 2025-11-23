@@ -86,6 +86,49 @@ import pandas as pd
 from scipy.sparse import csr_matrix
 from sklearn.neighbors import NearestNeighbors
 
+
+import pandas as pd
+import numpy as np
+
+# 1. Load recommendations from your CF model
+cf_recs_path = "Greger/out/cf_sklearn/test_recs_knn_sklearn.csv"
+recs_test = pd.read_csv(cf_recs_path)
+
+# 2. Restrict to top-K (same as in your experiments, usually K=10)
+K = 10
+recs_k = recs_test[recs_test["rank"] <= K]
+
+# 3. Load all item ids from your catalog (data/items.csv)
+cat_items_path = "data/items.csv"
+items_df = pd.read_csv(cat_items_path)
+all_items = set(items_df["item_id"].astype(str))
+
+# 4. Load training set to compute item popularity
+train_path = "Greger/data/train.csv"
+train_df = pd.read_csv(train_path)
+pop_counts = train_df["item_id"].astype(str).value_counts()
+
+# 5. Catalog coverage: unique recommended items / catalog size
+unique_recommended = set(recs_k["item_id"].astype(str))
+catalog_coverage = len(unique_recommended) / len(all_items)
+
+# 6. Compute popularity rank of each item (1=most popular)
+pop_sorted_ids = pop_counts.sort_values(ascending=False).index
+pop_rank = pd.Series(range(1, len(pop_sorted_ids)+1), index=pop_sorted_ids)
+
+# 7. Novelty: Average popularity percentile of recommended items
+pr = recs_k["item_id"].astype(str).map(pop_rank).dropna()
+if len(pr) > 0:
+    novelty_percentile = float(np.mean(1.0 - (pr - 1) / max(1, len(pop_rank)-1)))
+else:
+    novelty_percentile = 0.0
+
+print(f"Catalog coverage: {catalog_coverage:.4f}")
+print(f"Novelty percentile: {novelty_percentile:.4f}")
+
+# 8. (Optional) Save these to your results json or include in table/report as desired
+# You can also append to your metrics dict and re-save as needed
+
 #  metrics 
 def ndcg_at_k(rec_items, rel_set, k):
     """
