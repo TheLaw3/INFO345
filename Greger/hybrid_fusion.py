@@ -1,9 +1,137 @@
+"""
+Greger/hybrid_fusion.py — late-fusion hybrid for Top-K
+Late-fusion hybrid recommender for Top-K ranking.
+
+
+
+This module implements a weighted hybrid recommender that combines the
+
+scores of a collaborative‐filtering (CF) model and a content‐based
+
+filtering (CBF) model to produce a single ranked list of items for each user.  
+
+It reads precomputed CF and CBF recommendation files, z‑normalises the scores per user, computes a
+
+log‑scaled popularity score from the training data, and then fuses the
+
+normalised CF scores, CBF scores and popularity weights using a linear
+
+combination: `hybrid_score = w_cf * z_cf + w_cbf * z_cbf + w_pop *
+
+z_pop`. The script performs a small grid search on validation data to
+
+tune the weights `(w_cf, w_cbf, w_pop)` and outputs the resulting
+
+top‑K recommendations and evaluation metrics.
+
+
+
+
+
+
+refrences 
+
+
+Lecture 6 – Hybrid recommender systems (course slides 6–9) discusses
+
+  different hybrid strategies such as weighted (linear) hybrids, switching,
+
+  mixed and cascade hybrids.  Our implementation corresponds to a
+
+
+  *weighted hybrid*, where the outputs of CF and CBF models are combined
+
+
+  weighted hybrid, where the outputs of CF and CBF models are combined
+
+  using a weighted average; this design is explicitly contrasted against
+
+  switching or cascade hybrids in the lecture. 
+
+  we also took inspiration from Lecture 4/5 and 3. Collaborative Filtering and Content-Based Filtering.
+
+
+
+Marketsy Blog (2024), “Hybrid Recommender Systems: Beginner’s Guide.”
+
+   The article enumerates several hybrid strategies and explains that a
+
+   weighted hybrid combines the outputs of collaborative and content‑based
+
+   models using weighted averages; the importance of each model can be
+
+   adjusted based on its performance:contentReference. For example,
+
+   if the CF model yields more accurate recommendations for a user, its
+
+   output can be given a higher weight. 
+
+   URL: https://marketsy.ai/blog/hybrid-recommender-systems-beginners-guide
+
+
+
+Milvus AI Quick Reference (2025), “How do you combine collaborative and
+
+   content‑based methods effectively?”  
+
+   This reference states that hybrid recommender systems blend the outputs
+
+   of CF (which relies on user–item interactions) and CBF (which uses
+
+   item features) to leverage the strengths of both methods.
+
+   It notes that a common strategy is to compute recommendations from both
+
+   models separately and then combine them using weighted averages:contentReference[oaicite:3]{index=3};
+
+   for instance, a movie recommender might use 60 % CF and 40 % CB scores
+
+   to balance popularity and personal preferences.  
+
+   URL: https://milvus.io/ai-quick-reference/how-do-you-combine-collaborative-and-contentbased-methods-effectively
+
+
+
+Workflow:
+
+  1) Load CF and CBF recommendation files for val/test.
+
+  2) Standardize scores per user (z-normalization) to make sources comparable.
+
+  3) Map item popularity (log-scaled, globally z-normalized).
+
+  4) Fuse with weights (w_cf, w_cbf, w_pop); optionally tune on validation.
+
+  5) Rank per user, save fused recs, and report Top-K metrics.
+
+
+
+Inputs (CSV expectations):
+
+  - Recs: columns [user_id, item_id, score] and/or [rank].
+
+  - Splits: ratings with [user_id, item_id, rating] for relevance ≥ threshold.
+
+
+
+Outputs:
+
+  - <outdir>/val_recs_hybrid.csv, <outdir>/test_recs_hybrid.csv
+
+  - <outdir>/hybrid_metrics.json and metrics printed to stdout.
+
+"""
+
+
+
+
+
 import argparse, json, math
 from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# --- Metrics as before ---
+# --- Metrics ---
 def ndcg_at_k(rec_items, rel_set, k):
     if k == 0: return 0.0
     dcg = 0.0
@@ -14,17 +142,34 @@ def ndcg_at_k(rec_items, rel_set, k):
     idcg = sum(1.0 / math.log2(r + 1) for r in range(1, ideal + 1))
     return dcg / idcg
 
+
+
+    """
+    Compute precision@k for a single user.
+    """
 def precision_at_k(rec_items, rel_set, k):
     if k == 0: return 0.0
     return sum(i in rel_set for i in rec_items[:k]) / k
 
+
+    """
+    Compute recall@k for a single user.
+    """
 def recall_at_k(rec_items, rel_set, k):
     if not rel_set: return np.nan
     return sum(i in rel_set for i in rec_items[:k]) / len(rel_set)
 
+
+    """
+    Compute hit-rate@k for a single user.
+    """
 def hitrate_at_k(rec_items, rel_set, k):
     return 1.0 if any(i in rel_set for i in rec_items[:k]) else 0.0
 
+
+    """
+    Aggregate Top-K metrics across users.
+    """
 def eval_topk(recs_df, eval_df, k):
     rel_per_user = eval_df.groupby("user_id")["item_id"].apply(set)
     recs_k = recs_df[recs_df["rank"] <= k]
@@ -46,8 +191,11 @@ def eval_topk(recs_df, eval_df, k):
         f"hit_rate@{k}":  float(np.mean(hits))  if hits  else 0.0,
     }
 
-# --- Hybrid helpers as before ---
+# --- Hybrid helpers ---
 def load_recs(path, src_name):
+    """
+    Load a recommendation CSV and standardize its score column.
+    """
     df = pd.read_csv(path)
     keep = [c for c in ["user_id","item_id","score","rank"] if c in df.columns]
     df = df[keep].copy()
@@ -55,11 +203,15 @@ def load_recs(path, src_name):
     df["item_id"] = df["item_id"].astype(str).str.strip()
     df = df.drop_duplicates(subset=["user_id","item_id"], keep="first")
     if "score" not in df.columns:
+        # if only rank present, invert rank as a proxy score
         df["score"] = -df["rank"].astype(float)
     df.rename(columns={"score": f"{src_name}_score"}, inplace=True)
     return df
 
 def add_user_z(df, score_col, out_col):
+    """
+    Add per-user z-normalized scores based on an input score column.
+    """
     if len(df) == 0:
         df[out_col] = []
         return df
@@ -69,7 +221,15 @@ def add_user_z(df, score_col, out_col):
     df[out_col] = (df[score_col] - mu) / std
     return df
 
+
+
 def build_eval(df_path, thr):
+    """
+    Build ground-truth relevance from a ratings CSV.
+
+    Cleans IDs, coerces rating to [1,5], deduplicates, and filters rows with
+    rating ≥ thr.
+    """
     df = pd.read_csv(df_path)
     df = df.dropna(subset=["user_id","item_id"]).copy()
     df["user_id"] = df["user_id"].astype(str).str.strip()
@@ -79,20 +239,44 @@ def build_eval(df_path, thr):
     df = df.drop_duplicates(subset=["user_id","item_id"], keep="last")
     return df[df["rating"] >= thr][["user_id","item_id","rating"]]
 
+
+
 def item_pop_from_train(train_path):
+    """
+    Compute a global popularity prior from the training split.
+
+    Popularity = count(item_id) over train.
+    """
     tr = pd.read_csv(train_path)
     tr = tr.dropna(subset=["item_id"]).copy()
     tr["item_id"] = tr["item_id"].astype(str).str.strip()
     pop = tr.groupby("item_id").size().astype(float)
+    # log-scale then global z-norm
     lp = np.log1p(pop)
     z = (lp - lp.mean()) / (lp.std() if lp.std() > 0 else 1.0)
     return z  # pd.Series indexed by item_id
 
+
+
+
 def fuse_one_split(cf_path, cbf_path, eval_gt, K, w_cf, w_cbf, w_pop, pop_z=None, limit_users=None, out_csv=None):
+    """
+    Fuse CF and CBF scores with popularity into Top-K recs for one split.
+
+    Steps:
+      1) Load CF/CBF recs and compute per-user z-scores.
+      2) Outer-join to union items per user, fill missing z's with 0.
+      3) Add popularity.
+      4) Compute hybrid_score = w_cf*cf_z + w_cbf*cbf_z + w_pop*pop_z.
+      5) Keep only users present in eval set.
+      6) Rank by hybrid_score per user and evaluate Top-K.
+    """
     cf  = load_recs(cf_path,  "cf")
     cbf = load_recs(cbf_path, "cbf")
     cf  = add_user_z(cf,  "cf_score",  "cf_z")
     cbf = add_user_z(cbf, "cbf_score", "cbf_z")
+    # outer-merge union of items per user
+
     merged = cf.merge(cbf, on=["user_id","item_id"], how="outer")
     merged[["cf_z","cbf_z"]] = merged[["cf_z","cbf_z"]].fillna(0.0)
     if pop_z is not None and w_pop != 0.0:
@@ -100,11 +284,17 @@ def fuse_one_split(cf_path, cbf_path, eval_gt, K, w_cf, w_cbf, w_pop, pop_z=None
     else:
         merged["pop_z"] = 0.0
     merged["hybrid_score"] = w_cf*merged["cf_z"] + w_cbf*merged["cbf_z"] + w_pop*merged["pop_z"]
+
+
+    # keep only users in eval set
     eval_users = eval_gt["user_id"].unique()
     merged = merged[merged["user_id"].isin(eval_users)]
     if limit_users:
         keep = set(eval_users[:int(limit_users)])
         merged = merged[merged["user_id"].isin(keep)]
+    
+
+    # rank per user
     merged.sort_values(["user_id","hybrid_score"], ascending=[True, False], inplace=True)
     merged["rank"] = merged.groupby("user_id").cumcount() + 1
     recs = merged[["user_id","item_id","rank","hybrid_score"]]
@@ -140,6 +330,7 @@ def compute_coverage_novelty(recs_csv, items_csv, train_csv, k):
 
 # --- Main ---
 if __name__ == "__main__":
+    # CLI arguments for fusion and weight tuning.
     ap = argparse.ArgumentParser()
     ap.add_argument("--cf_val",  required=True)
     ap.add_argument("--cf_test", required=True)
@@ -168,6 +359,14 @@ if __name__ == "__main__":
     if args.w_cf == 0 and args.w_cbf == 0 and args.w_pop == 0:
         raise ValueError("all weights are zero")
 
+
+
+
+    # Popularity.
+
+    # Builds a z-scored popularity Series (item_id -> pop_z) from the train split
+    # only when a nonzero w_pop is requested. If the train file is missing, we
+    # deterministically disable the popularity term to avoid NameError or inconsistent behavior.
     pop_z = None
     if args.w_pop != 0.0:
         if args.train and Path(args.train).exists():
@@ -176,13 +375,17 @@ if __name__ == "__main__":
             print("[hybrid_fusion] popularity weight requested but no train data found; forcing w_pop=0", flush=True)
             args.w_pop = 0.0
 
+    # Build evaluation ground truth at threshold.
     val_gt  = build_eval(args.val,  args.threshold)
     test_gt = build_eval(args.test, args.threshold)
 
     def parse_grid(values):
+         """Parse a comma-separated string of floats into a list."""
         return [float(v) for v in str(values).split(",") if v != ""]
 
+
     # weights tuning
+    # grid search for best weights on validation.
     if args.tune_weights:
         cf_grid  = parse_grid(args.grid_cf)
         cbf_grid = parse_grid(args.grid_cbf)
@@ -220,6 +423,7 @@ if __name__ == "__main__":
         }, indent=2))
 
     # --- Main hybrid val/test generation ---
+    # Fuse and evaluate for val/test; save outputs.
     val_recs,  val_metrics  = fuse_one_split(
         args.cf_val, args.cbf_val, val_gt, args.k_top,
         args.w_cf, args.w_cbf, args.w_pop, pop_z,
@@ -231,7 +435,7 @@ if __name__ == "__main__":
         args.limit_users_test, out_csv=outdir/"test_recs_hybrid.csv"
     )
 
-    # --- NEW: Catalog Coverage + Novelty for hybrid on test set ---
+    # --- Catalog Coverage + Novelty for hybrid on test set ---
     test_recs_path = str(outdir/'test_recs_hybrid.csv')
     catalog_coverage, novelty_percentile = compute_coverage_novelty(
         test_recs_path, args.items, args.train, args.k_top)
